@@ -11,30 +11,23 @@ using Microsoft.Azure.CosmosRepository;
 using Microsoft.Extensions.Options;
 using altgraph_shared_app;
 
-namespace altgraph_web_app.Areas.NpmGraph.Pages;
+namespace altgraph_web_app.Areas.ImdbGraph.Pages;
 
 public class IndexModel : PageModel
 {
   private readonly ILogger<IndexModel> _logger;
   [BindProperty]
-  public string SubjectName { get; set; } = string.Empty;
+  public string FormFunction { get; set; } = string.Empty;
   [BindProperty]
-  public bool AuthorCheckBox { get; set; } = false;
+  public string Value1 { get; set; } = string.Empty;
   [BindProperty]
-  public int GraphDepth { get; set; } = 1;
-  [BindProperty]
-  public string? CacheOpts { get; set; } = string.Empty;
+  public string Value2 { get; set; } = string.Empty;
   [BindProperty]
   public string? ElapsedMs { get; set; } = string.Empty;
   [BindProperty(SupportsGet = true)]
   public string? NodesCsv { get; set; } = string.Empty;
   [BindProperty(SupportsGet = true)]
   public string? EdgesCsv { get; set; } = string.Empty;
-  [BindProperty(SupportsGet = true)]
-  public string? LibraryAsJson { get; set; } = "{}";
-  public string? GraphJson { get; set; } = string.Empty;
-  [BindProperty(SupportsGet = true)]
-  public string? LibraryInfo { get; set; } = string.Empty;
   private readonly LibraryRepository _libraryRepository;
   private readonly AuthorRepository _authorRepository;
   private readonly TripleRepository _tripleRepository;

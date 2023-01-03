@@ -1,5 +1,5 @@
 using altgraph_shared_app.Options;
-using altgraph_shared_app.Services.Graph;
+using altgraph_shared_app.Services.Graph.v1;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
