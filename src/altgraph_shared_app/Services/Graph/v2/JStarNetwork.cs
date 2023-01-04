@@ -1,3 +1,6 @@
+using altgraph_shared_app.Services.Graph.v2.Structs;
+using QuikGraph;
+
 namespace altgraph_shared_app.Services.Graph.v2
 {
   public class JStarNetwork
@@ -23,15 +26,13 @@ namespace altgraph_shared_app.Services.Graph.v2
       UnvisitedSet.Add(RootVertex);
     }
 
-    public void AddOutEdgesFor(string vertex, Set<DefaultEdge> outEdges, int degree)
+    public void AddOutEdgesFor(string vertex, IEnumerable<Edge<string>> outEdges, int degree)
     {
       VisitedSet.Add(vertex);
       Degrees[degree - 1].Add(vertex, outEdges);
 
-      Iterator<DefaultEdge> it = outEdges.iterator();
-      while (it.hasNext())
+      foreach (Edge<string> de in outEdges)
       {
-        DefaultEdge de = it.next();
         string[] values = ParseDefaultEdge(de);
         string ev1 = values[0];
         string ev2 = values[1];
@@ -46,7 +47,7 @@ namespace altgraph_shared_app.Services.Graph.v2
       }
     }
 
-    private string[] ParseDefaultEdge(DefaultEdge de)
+    private string[] ParseDefaultEdge(Edge<string> de)
     {
       string[] result = new string[2];
       result[0] = "?";
@@ -54,7 +55,7 @@ namespace altgraph_shared_app.Services.Graph.v2
 
       if (de != null)
       {
-        string[] tokens = de.tostring().split(":");
+        string[] tokens = de.ToString().Split(":");
         if (tokens.Length == 2)
         {
           result[0] = tokens[0].Replace('(', ' ').Trim();
@@ -76,10 +77,9 @@ namespace altgraph_shared_app.Services.Graph.v2
     public List<string> GetUnvisitedList()
     {
       List<string> list = new List<string>();
-      Iterator<string> it = UnvisitedSet.iterator();
-      while (it.hasNext())
+      foreach (string s in UnvisitedSet)
       {
-        list.Add(it.next());
+        list.Add(s);
       }
       return list;
     }
@@ -89,35 +89,31 @@ namespace altgraph_shared_app.Services.Graph.v2
       this.UnvisitedSet = new HashSet<string>();
     }
 
-    public EdgesStruct asEdgesStruct()
+    public EdgesStruct AsEdgesStruct()
     {
       EdgesStruct edgesStruct = new EdgesStruct();
-      edgesStruct.setVertex1(RootVertex);
-      edgesStruct.setVertex2("" + Depth);
-      edgesStruct.setElapsedMs(ElapsedMs());
+      edgesStruct.Vertex1 = RootVertex;
+      edgesStruct.Vertex2 = "" + Depth;
+      edgesStruct.ElapsedMs = ElapsedMs();
 
       for (int i = 0; i < this.Degrees.Count; i++)
       {
         int level = i + 1;
         JStarDegree jsd = Degrees[i];
-        Iterator<string> vertexIt = jsd.OutgoingEdgesMap.keySet().iterator();
-        while (vertexIt.hasNext())
+        foreach (string v in jsd.OutgoingEdgesMap.Keys)
         {
-          string v = vertexIt.next();
-          Set<DefaultEdge> deSet = jsd.OutgoingEdgesMap[v];
-          Iterator<DefaultEdge> edgeIt = deSet.iterator();
+          IEnumerable<Edge<string>> deSet = jsd.OutgoingEdgesMap[v];
           int seq = 0;
-          while (edgeIt.hasNext())
+          foreach (Edge<string> de in deSet)
           {
-            DefaultEdge de = edgeIt.next();
             string[] vertices = ParseDefaultEdge(de);
             if (vertices.Length == 2)
             {
               seq++;
               EdgeStruct es = new EdgeStruct(vertices[0], vertices[1]);
-              es.setSeq(seq);
-              es.setLevel(level);
-              edgesStruct.addEdge(es);
+              es.Seq = seq;
+              es.Level = level;
+              edgesStruct.AddEdge(es);
             }
           }
         }
@@ -127,35 +123,36 @@ namespace altgraph_shared_app.Services.Graph.v2
 
     public void Display()
     {
-      sysout("JStar Network:");
-      sysout("  depth:       " + this.Depth);
-      sysout("  visitedSize: " + VisitedSet.Count);
-      sysout("  elapsedMs:   " + ElapsedMs());
-      sysout("  charlotte:   " + VisitedSet.Contains(ImdbConstants.PERSON_CHARLOTTE_RAMPLING));
-      sysout("  julia:       " + VisitedSet.Contains(ImdbConstants.PERSON_JULIA_ROBERTS));
-      sysout("  lori:        " + VisitedSet.Contains(ImdbConstants.PERSON_LORI_SINGER));
-      sysout("  cjoakim:     " + VisitedSet.Contains("cjoakim"));
+      throw new NotImplementedException();
+      // sysout("JStar Network:");
+      // sysout("  depth:       " + this.Depth);
+      // sysout("  visitedSize: " + VisitedSet.Count);
+      // sysout("  elapsedMs:   " + ElapsedMs());
+      // sysout("  charlotte:   " + VisitedSet.Contains(ImdbConstants.PERSON_CHARLOTTE_RAMPLING));
+      // sysout("  julia:       " + VisitedSet.Contains(ImdbConstants.PERSON_JULIA_ROBERTS));
+      // sysout("  lori:        " + VisitedSet.Contains(ImdbConstants.PERSON_LORI_SINGER));
+      // sysout("  cjoakim:     " + VisitedSet.Contains("cjoakim"));
 
-      for (int i = 0; i < this.Degrees.Count; i++)
-      {
-        JStarDegree jsd = Degrees[i];
-        sysout("  degree : " + jsd.Degree + " (" + jsd.OutgoingEdgesMap.Count + ")");
-        Iterator<string> vertexIt = jsd.OutgoingEdgesMap().keySet().iterator();
-        while (vertexIt.hasNext())
-        {
-          string v = vertexIt.next();
-          sysout("    " + v);
-          Set<DefaultEdge> deSet = jsd.OutgoingEdgesMap().get(v);
-          Iterator<DefaultEdge> edgeIt = deSet.iterator();
-          int seq = 0;
-          while (edgeIt.hasNext())
-          {
-            seq++;
-            DefaultEdge de = edgeIt.next();
-            //sysout("      " + de);
-          }
-        }
-      }
+      // for (int i = 0; i < this.Degrees.Count; i++)
+      // {
+      //   JStarDegree jsd = Degrees[i];
+      //   sysout("  degree : " + jsd.Degree + " (" + jsd.OutgoingEdgesMap.Count + ")");
+      //   Iterator<string> vertexIt = jsd.OutgoingEdgesMap().keySet().iterator();
+      //   while (vertexIt.hasNext())
+      //   {
+      //     string v = vertexIt.next();
+      //     sysout("    " + v);
+      //     Set<DefaultEdge> deSet = jsd.OutgoingEdgesMap().get(v);
+      //     Iterator<DefaultEdge> edgeIt = deSet.iterator();
+      //     int seq = 0;
+      //     while (edgeIt.hasNext())
+      //     {
+      //       seq++;
+      //       DefaultEdge de = edgeIt.next();
+      //       //sysout("      " + de);
+      //     }
+      //   }
+      // }
     }
 
     public void Finish()

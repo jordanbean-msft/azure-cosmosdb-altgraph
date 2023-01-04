@@ -4,11 +4,11 @@ using QuikGraph;
 
 namespace altgraph_shared_app.Services.Graph.v2
 {
-  public class JEdge : Edge<VertexValueStruct>
+  public class JEdge : IEdge<VertexValueStruct>
   {
-    public JEdge([NotNullAttribute] VertexValueStruct source, [NotNullAttribute] VertexValueStruct target) : base(source, target)
-    {
-    }
+    public VertexValueStruct Source { get; set; } = new VertexValueStruct();
+
+    public VertexValueStruct Target { get; set; } = new VertexValueStruct();
 
     public string? S()
     {

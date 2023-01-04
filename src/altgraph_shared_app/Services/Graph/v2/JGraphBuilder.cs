@@ -1,23 +1,33 @@
+using altgraph_shared_app.Models.Imdb;
+using altgraph_shared_app.Options;
+using Microsoft.Azure.Cosmos;
+using Microsoft.Azure.Cosmos.Fluent;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using QuikGraph;
 
 namespace altgraph_shared_app.Services.Graph.v2
 {
-  public class JGraphBuilder
+  public class JGraphBuilder : IJGraphBuilder
   {
     public string Uri { get; set; } = string.Empty;
     public string Key { get; set; } = string.Empty;
     public string DbName { get; set; } = string.Empty;
     public string Source { get; set; } = string.Empty;
     public bool Directed { get; set; } = false;
-    private ILogger<JGraphBuilder> _logger;
+    private ILogger _logger;
+    private CosmosOptions _cosmosOptions;
+    private ImdbOptions _imdbOptions;
 
-    public JGraphBuilder(string source, ILogger<JGraphBuilder> logger)
+    public JGraphBuilder(string source, ILogger logger, IOptions<CosmosOptions> cosmosOptions, IOptions<ImdbOptions> imdbOptions)
     {
       Source = source;
       _logger = logger;
+      _cosmosOptions = cosmosOptions.Value;
+      _imdbOptions = imdbOptions.Value;
     }
 
-    public org.jgrapht.Graph<string, DefaultEdge> BuildImdbGraph()
+    public IMutableGraph<string, Edge<string>>? BuildImdbGraph()
     {
       _logger.LogWarning($"buildImdbGraph, source:   {Source}");
       _logger.LogWarning($"buildImdbGraph, directed: {Directed}");
@@ -32,6 +42,7 @@ namespace altgraph_shared_app.Services.Graph.v2
             return LoadImdbGraphFromCosmos(Directed);
           default:
             _logger.LogWarning($"undefined graph source: {Source}");
+            return null;
         }
       }
       catch (Exception ex)
@@ -39,91 +50,94 @@ namespace altgraph_shared_app.Services.Graph.v2
         //ex.printStackTrace();
         throw ex;
       }
-      return null;
+      //return null;
     }
 
-    private org.jgrapht.Graph<string, DefaultEdge> CreateGraphObject(bool directed)
+    private IMutableGraph<string, Edge<string>> CreateGraphObject(bool directed)
     {
-      org.jgrapht.Graph<string, DefaultEdge> graph = null;
+      IMutableGraph<string, Edge<string>> graph;
 
       if (directed)
       {
         //graph = new DirectedMultigraph(DefaultEdge.class);
+        graph = new BidirectionalGraph<string, Edge<string>>();
       }
       else
       {
         //graph = new Multigraph(DefaultEdge.class);
+        graph = new UndirectedGraph<string, Edge<string>>();
       }
       return graph;
     }
 
-    private org.jgrapht.Graph<string, DefaultEdge> LoadImdbGraphFromDisk(bool directed)
+    private IMutableGraph<string, Edge<string>> LoadImdbGraphFromDisk(bool directed)
     {
-      org.jgrapht.Graph<string, DefaultEdge> graph = createGraphObject(directed);
+      throw new NotImplementedException();
+      // IMutableGraph<string, Edge<string>> graph = CreateGraphObject(directed);
 
-      JsonLoader jsonLoader = new JsonLoader();
-      Dictionary<string, Movie> moviesHash = new Dictionary<string, Movie>();
-      jsonLoader.readMovieDocuments(moviesHash, true);
-      CheckMemory(true, true, "loadImdbGraphFromDisk - after reading movies from file");
+      // JsonLoader jsonLoader = new JsonLoader();
+      // Dictionary<string, Movie> moviesHash = new Dictionary<string, Movie>();
+      // jsonLoader.readMovieDocuments(moviesHash, true);
+      // CheckMemory(true, true, "loadImdbGraphFromDisk - after reading movies from file");
 
-      Iterator<string> moviesIt = moviesHash.keySet().iterator();
-      long movieNodesCreated = 0;
-      long personNodesCreated = 0;
-      long edgesCreated = 0;
+      // Iterator<string> moviesIt = moviesHash.keySet().iterator();
+      // long movieNodesCreated = 0;
+      // long personNodesCreated = 0;
+      // long edgesCreated = 0;
 
-      while (moviesIt.hasNext())
-      {
-        string tconst = moviesIt.next();
-        Movie movie = moviesHash.get(tconst);
-        if (!graph.containsVertex(tconst))
-        {
-          graph.addVertex(tconst);
-          movieNodesCreated++;
-        }
+      // while (moviesIt.hasNext())
+      // {
+      //   string tconst = moviesIt.next();
+      //   Movie movie = moviesHash.get(tconst);
+      //   if (!graph.ContainsVertex(tconst))
+      //   {
+      //     graph.AddVertex(tconst);
+      //     movieNodesCreated++;
+      //   }
 
-        Iterator<string> peopleIt = movie.getPeople().iterator();
-        while (peopleIt.hasNext())
-        {
-          string nconst = peopleIt.next();
-          if (!graph.containsVertex(nconst))
-          {
-            graph.addVertex(nconst);
-            personNodesCreated++;
-          }
-          graph.addEdge(nconst, tconst);  // person-to-movie
-          edgesCreated++;
-          if (directed)
-          {
-            // just a single edge between vertices
-          }
-          else
-          {
-            graph.addEdge(tconst, nconst);  // movie-to-person
-            edgesCreated++;
-          }
-        }
-      }
+      //   Iterator<string> peopleIt = movie.getPeople().iterator();
+      //   while (peopleIt.hasNext())
+      //   {
+      //     string nconst = peopleIt.next();
+      //     if (!graph.ContainsVertex(nconst))
+      //     {
+      //       graph.AddVertex(nconst);
+      //       personNodesCreated++;
+      //     }
+      //     graph.AddEdge(nconst, tconst);  // person-to-movie
+      //     edgesCreated++;
+      //     if (directed)
+      //     {
+      //       // just a single edge between vertices
+      //     }
+      //     else
+      //     {
+      //       graph.AddEdge(tconst, nconst);  // movie-to-person
+      //       edgesCreated++;
+      //     }
+      //   }
+      // }
 
-      CheckMemory(true, true, "loadImdbGraphFromDisk - after building graph");
-      _logger.LogWarning($"loadImdbGraphFromDisk - movieNodesCreated:  {movieNodesCreated}");
-      _logger.LogWarning($"loadImdbGraphFromDisk - personNodesCreated: {personNodesCreated}");
-      _logger.LogWarning($"loadImdbGraphFromDisk - edgesCreated:       {edgesCreated}");
-      return graph;
+      // CheckMemory(true, true, "loadImdbGraphFromDisk - after building graph");
+      // _logger.LogWarning($"loadImdbGraphFromDisk - movieNodesCreated:  {movieNodesCreated}");
+      // _logger.LogWarning($"loadImdbGraphFromDisk - personNodesCreated: {personNodesCreated}");
+      // _logger.LogWarning($"loadImdbGraphFromDisk - edgesCreated:       {edgesCreated}");
+      // return graph;
     }
 
-    private org.jgrapht.Graph<string, DefaultEdge> LoadImdbGraphFromCosmos(boolean directed)
+    private IMutableGraph<string, Edge<string>> LoadImdbGraphFromCosmos(bool directed)
     {
-      uri = DataAppConfiguration.getInstance().uri;
-      key = DataAppConfiguration.getInstance().key;
-      dbName = DataAppConfiguration.getInstance().dbName;
-      source = DataAppConfiguration.getInstance().imdbGraphSource;
-      directed = DataAppConfiguration.getInstance().imdbGraphDirected;
+      Uri = _cosmosOptions.ConnectionString;
+      //Key = _cosmosOptions.Key;
+      DbName = _cosmosOptions.DatabaseId;
+      Source = _imdbOptions.GraphSource;
+      Directed = _imdbOptions.GraphDirected;
 
-      org.jgrapht.Graph<string, DefaultEdge> graph = CreateGraphObject(directed);
+      IMutableGraph<string, Edge<string>> graph = CreateGraphObject(directed);
 
-      CosmosAsyncClient client;
-      CosmosAsyncDatabase database;
-      CosmosAsyncContainer container;
+      CosmosClient client;
+      Database database;
+      Container container;
       double requestCharge = 0;
       long documentsRead = 0;
       long movieNodesCreated = 0;
@@ -132,29 +146,29 @@ namespace altgraph_shared_app.Services.Graph.v2
       string sql = "select * from c where c.pk = '" + Constants.DOCTYPE_MOVIE_SEED + "'";
       int pageSize = 1000;
       string continuationToken = null;
-      CosmosQueryRequestOptions queryOptions = new CosmosQueryRequestOptions();
+      //CosmosQueryRequestOptions queryOptions = new CosmosQueryRequestOptions();
 
       _logger.LogWarning("uri:    " + Uri);
       _logger.LogWarning("key:    " + Key);
       _logger.LogWarning("dbName: " + DbName);
       _logger.LogWarning("sql:    " + sql);
 
-      CheckMemory(true, true, "loadImdbGraphFromCosmos - start");
+      //CheckMemory(true, true, "loadImdbGraphFromCosmos - start");
       //long startMs = System.currentTimeMillis();
 
-      client = new CosmosClientBuilder()
-              .endpoint(Uri)
-              .key(Key)
-              .preferredRegions(DataAppConfiguration.getPreferredRegions())
-              .consistencyLevel(ConsistencyLevel.SESSION)
-              .contentResponseOnWriteEnabled(true)
-              .buildAsyncClient();
+      client = new CosmosClientBuilder(
+              connectionString: Uri
+      )
+              .WithApplicationPreferredRegions(_cosmosOptions.PreferredLocations)
+              .WithConsistencyLevel(ConsistencyLevel.Session)
+              .WithContentResponseOnWrite(true)
+              .Build();
 
-      database = client.getDatabase(DbName);
+      database = client.GetDatabase(DbName);
       _logger.LogWarning("client connected to database Id: " + database.getId());
 
-      container = database.getContainer(Constants.IMDB_SEED_CONTAINER);
-      _logger.LogWarning("container: " + container.getId());
+      container = database.GetContainer(Constants.IMDB_SEED_CONTAINER_NAME);
+      _logger.LogWarning("container: " + container.Id);
 
       //long dbConnectMs = System.currentTimeMillis();
 
@@ -179,7 +193,7 @@ foreach (FeedResponse<SeedDocument> page : feedResponseIterator)
   graph.AddVertex(tconst);
 movieNodesCreated++;
 
-for (int i = 0; i<doc.GetAdjacentVertices().size(); i++)
+for (int i = 0; i<doc.GetAdjacentVertices().Count(); i++)
 {
   string nconst = doc.GetAdjacentVertices().get(i);
   if (!graph.ContainsVertex(nconst))

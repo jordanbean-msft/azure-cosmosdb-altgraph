@@ -9,6 +9,14 @@ namespace altgraph_shared_app.Services.Graph.v2.Structs
     //public HashMap<string, Double> ranks;
     public List<JRank> Ranks { get; private set; } = new List<JRank>();
 
+    public VertexValueStruct()
+    {
+    }
+    public VertexValueStruct(string function)
+    {
+      Function = function;
+    }
+
     public void AddRank(string vertex, double value)
     {
       if (vertex != null)

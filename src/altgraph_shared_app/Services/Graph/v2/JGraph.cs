@@ -1,6 +1,9 @@
+using altgraph_shared_app.Options;
 using altgraph_shared_app.Services.Graph.v2.Structs;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using QuikGraph;
+using QuikGraph.Algorithms;
 
 namespace altgraph_shared_app.Services.Graph.v2
 {
@@ -8,33 +11,33 @@ namespace altgraph_shared_app.Services.Graph.v2
   {
     public string Domain { get; set; } = string.Empty;
     public string Source { get; set; } = string.Empty;
-
     public DateTime RefreshDate { get; set; }
     public long RefreshMs { get; set; }
-    private readonly ILogger<JGraph> _logger;
+    public IMutableGraph<string, Edge<string>>? Graph { get; set; } = null;
+    private readonly ILogger _logger;
+    private IJGraphBuilder _graphBuilder;
 
-    public BidirectionalGraph<string, Edge<VertexValueStruct>> Graph { get; private set; } = new BidirectionalGraph<string, Edge<VertexValueStruct>>();
-
-    public JGraph(string domain, string source, ILogger<JGraph> logger)
+    public JGraph(string domain, string source, ILogger<JGraph> logger, IJGraphBuilder graphBuilder)
     {
       Domain = domain;
       Source = source;
       _logger = logger;
+      _graphBuilder = graphBuilder;
       Refresh();
     }
 
     public int[] GetVertexAndEdgeCounts()
     {
       int[] counts = new int[2];
-      counts[0] = Graph.Vertices.Count();
-      counts[1] = Graph.Edges.Count();
+      counts[0] = (Graph as IVertexSet<string>)!.Vertices.Count();
+      counts[1] = (Graph as IEdgeSet<string, Edge<string>>)!.Edges.Count();
       return counts;
     }
 
     /**
      * Find the shortest path with the DijkstraShortestPath class in JGraphT.
      */
-    public GraphPath<string, DefaultEdge> GetShortestPath(string v1, string v2)
+    public IEnumerable<Edge<string>>? GetShortestPath(string v1, string v2)
     {
       _logger.LogWarning($"getShortestPath, v1: {v1} to v2: {v2}");
       //long start = System.currentTimeMillis();
@@ -46,29 +49,44 @@ namespace altgraph_shared_app.Services.Graph.v2
       {
         return null;
       }
-      GraphPath<string, DefaultEdge> path =
-              DijkstraShortestPath.findPathBetween(Graph, v1, v2);
-      //long elapsed = System.currentTimeMillis() - start;
+      //GraphPath<VertexValueStruct, Edge<VertexValueStruct>> path = DijkstraShortestPath.findPathBetween(Graph, v1, v2);
+      Func<Edge<string>, double> edgeCost = edge => 1; // Constant cost
+      IEnumerable<Edge<string>>? path = null;
 
-      if (path == null)
+      if (Graph != null)
       {
-        _logger.LogWarning("path is null");
-      }
-      else
-      {
-        //_logger.LogWarning("elapsed milliseconds: " + elapsed);
-        _logger.LogWarning("path getLength:       " + path.getLength());
-        _logger.LogWarning("path getStartVertex:  " + path.getStartVertex());
-        _logger.LogWarning("path getEndVertex:    " + path.getEndVertex());
+        TryFunc<string, IEnumerable<Edge<string>>> tryGetPaths;
+
+        if (Graph.IsDirected)
+        {
+          tryGetPaths = (Graph as IBidirectionalGraph<string, Edge<string>>).ShortestPathsDijkstra(edgeCost, v1);
+        }
+        else
+        {
+          tryGetPaths = (Graph as IUndirectedGraph<string, Edge<string>>).ShortestPathsDijkstra(edgeCost, v1);
+        }
+        //long elapsed = System.currentTimeMillis() - start;
+
+        if (!tryGetPaths(v2, out path))
+        {
+          _logger.LogWarning("path is null");
+        }
+        else
+        {
+          //_logger.LogWarning("elapsed milliseconds: " + elapsed);
+          _logger.LogWarning("path Count:       " + path.Count());
+          _logger.LogWarning("path StartVertex:  " + path.First());
+          _logger.LogWarning("path EndVertex:    " + path.Last());
+        }
       }
       return path;
     }
 
 
-    public EdgesStruct GetShortestPathAsEdgesStruct(string v1, string v2)
+    public EdgesStruct? GetShortestPathAsEdgesStruct(string v1, string v2)
     {
       //long startMs = System.currentTimeMillis();
-      GraphPath<string, DefaultEdge> path = GetShortestPath(v1, v2);
+      IEnumerable<Edge<string>>? path = GetShortestPath(v1, v2);
 
       if (path != null)
       {
@@ -76,10 +94,13 @@ namespace altgraph_shared_app.Services.Graph.v2
         //edgesStruct.ElapsedMs = (System.currentTimeMillis() - startMs);
         edgesStruct.Vertex1 = v1;
         edgesStruct.Vertex2 = v2;
-        foreach (DefaultEdge e : path.GetEdgeList())
+        foreach (Edge<string> e in path)
         {
-          EdgeStruct edgeStruct = ParseDefaultEdge(e);
-          edgesStruct.AddEdge(edgeStruct);
+          EdgeStruct? edgeStruct = ParseDefaultEdge(e);
+          if (edgeStruct != null)
+          {
+            edgesStruct.AddEdge(edgeStruct);
+          }
         }
         return edgesStruct;
       }
@@ -89,16 +110,38 @@ namespace altgraph_shared_app.Services.Graph.v2
       }
     }
 
-    public Set<DefaultEdge> EdgesOf(string v)
+    public HashSet<Edge<string>>? EdgesOf(string v)
     {
       if (IsVertexPresent(v))
       {
-        return graph.edgesOf(v);
+        HashSet<Edge<string>> edges = new HashSet<Edge<string>>();
+        if (Graph != null)
+        {
+          if (Graph.IsDirected)
+          {
+            foreach (Edge<string> edge in ((IBidirectionalGraph<string, Edge<string>>)Graph)!.InEdges(v))
+            {
+              edges.Add(edge);
+            }
+            foreach (Edge<string> edge in ((IBidirectionalGraph<string, Edge<string>>)Graph)!.OutEdges(v))
+            {
+              edges.Add(edge);
+            }
+          }
+          else
+          {
+            foreach (Edge<string> edge in ((IUndirectedGraph<string, Edge<string>>)Graph)!.AdjacentEdges(v))
+            {
+              edges.Add(edge);
+            }
+          }
+        }
+        return edges;
       }
       return null;
     }
 
-    public JStarNetwork StarNetworkFor(string rootVertex, int degrees)
+    public JStarNetwork? StarNetworkFor(string rootVertex, int degrees)
     {
       JStarNetwork? star = null;
       if (IsVertexPresent(rootVertex))
@@ -114,136 +157,157 @@ namespace altgraph_shared_app.Services.Graph.v2
           for (int i = 0; i < unvisitedList.Count; i++)
           {
             string v = unvisitedList[i];
-            Set<DefaultEdge> edges = graph.edgesOf(v);
-            star.AddOutEdgesFor(v, edges, d);
+            HashSet<Edge<string>>? edges = EdgesOf(v);
+            if (edges != null)
+            {
+              star.AddOutEdgesFor(v, edges, d);
+            }
           }
         }
       }
-      star.Finish();
+      star?.Finish();
       return star;
     }
 
-    public Set<DefaultEdge> IncomingEdgesOf(string v)
+    public HashSet<Edge<string>>? IncomingEdgesOf(string v)
     {
-      if (IsVertexPresent(v))
+      if (Graph is IBidirectionalGraph<string, Edge<string>> && IsVertexPresent(v))
       {
-        return graph.incomingEdgesOf(v);
+        return ((IBidirectionalGraph<string, Edge<string>>)Graph)?.InEdges(v).ToHashSet();
       }
       return null;
     }
 
     public int DegreeOf(string v)
     {
-      if (IsVertexPresent(v))
+      if (Graph != null && IsVertexPresent(v))
       {
-        return graph.degreeOf(v);
+        if (Graph.IsDirected)
+        {
+          return ((IBidirectionalGraph<string, Edge<string>>)Graph).Degree(v);
+        }
+        else
+        {
+          return ((IUndirectedGraph<string, Edge<string>>)Graph).AdjacentEdges(v).Count();
+        }
       }
       return -1;
     }
 
     public int InDegreeOf(string v)
     {
-      if (IsVertexPresent(v))
+      if (Graph != null && Graph is IBidirectionalGraph<string, Edge<string>> && IsVertexPresent(v))
       {
-        return graph.inDegreeOf(v);
+        return ((IBidirectionalGraph<string, Edge<string>>)Graph).InDegree(v);
       }
       return -1;
     }
 
-    public Double PageRankForVertex(string v)
+    public double PageRankForVertex(string v)
     {
-      if (IsVertexPresent(v))
-      {
-        PageRank pr = new PageRank(graph);
-        return pr.GetVertexScore(v);
-      }
-      return -1.0;
+      throw new NotImplementedException();
+      // if (IsVertexPresent(v))
+      // {
+      //   PageRank pr = new PageRank(Graph);
+      //   return pr.GetVertexScore(v);
+      // }
+      // return -1.0;
     }
 
-    public Map PageRankForAll()
+    public Dictionary<string, double> PageRankForAll()
     {
-      PageRank pr = new PageRank(graph);
-      return pr.GetScores();
+      throw new NotImplementedException();
+      // PageRank pr = new PageRank(Graph);
+      // return pr.GetScores();
     }
 
     public List<JRank> SortedPageRanks(int maxCount)
     {
-      List<JRank> ranks = new List<JRank>();
-      VertexValueStruct vvStruct = new VertexValueStruct();
-      Dictionary<string, double> scores = PageRankForAll();
-      Iterator<string> prAllIt = scores.keySet().iterator();
-      while (prAllIt.hasNext())
-      {
-        string vertex = prAllIt.next();
-        double value = scores[vertex];
-        vvStruct.AddRank(vertex, value);
-      }
-      vvStruct.Sort();
-      for (int i = 0; i < maxCount; i++)
-      {
-        ranks.Add(vvStruct.GetRank(i));
-      }
-      return ranks;
+      throw new NotImplementedException();
+      // List<JRank> ranks = new List<JRank>();
+      // VertexValueStruct vvStruct = new VertexValueStruct();
+      // Dictionary<string, double> scores = PageRankForAll();
+      // //Iterator<string> prAllIt = scores.keySet().iterator();
+      // //while (prAllIt.hasNext())
+      // foreach (string vertex in scores.Keys)
+      // {
+      //   double value = scores[vertex];
+      //   vvStruct.AddRank(vertex, value);
+      // }
+      // vvStruct.Sort();
+      // for (int i = 0; i < maxCount; i++)
+      // {
+      //   ranks.Add(vvStruct.GetRank(i));
+      // }
+      // return ranks;
     }
 
-    public Double CentralityOfVertex(string v)
+    public double CentralityOfVertex(string v)
     {
-      if (IsVertexPresent(v))
-      {
-        KatzCentrality kc = new KatzCentrality(graph);
-        return kc.getVertexScore(v);
-      }
-      return -1.0;
+      throw new NotImplementedException();
+      // if (IsVertexPresent(v))
+      // {
+      //   KatzCentrality kc = new KatzCentrality(Graph);
+      //   return kc.getVertexScore(v);
+      // }
+      // return -1.0;
     }
 
-    public Map CentralityRankAll()
+    public Dictionary<string, double> CentralityRankAll()
     {
-      KatzCentrality kc = new KatzCentrality(graph);
-      return kc.getScores();
+      throw new NotImplementedException();
+      // KatzCentrality kc = new KatzCentrality(Graph);
+      // return kc.getScores();
     }
 
     public void Refresh()
     {
       //long t1 = System.currentTimeMillis();
-      org.jgrapht.Graph<string, DefaultEdge> newGraph = null;
-      JGraphBuilder builder = new JGraphBuilder(source);
+      IMutableGraph<string, Edge<string>>? newGraph = null;
       _logger.LogWarning($"JGraph refresh(), domain: {Domain}");
 
       try
       {
         if (Domain.Equals(Constants.GRAPH_DOMAIN_IMDB, StringComparison.OrdinalIgnoreCase))
         {
-          newGraph = builder.BuildImdbGraph();
+          newGraph = _graphBuilder.BuildImdbGraph();
           if (newGraph != null)
           {
             //refreshMs = System.currentTimeMillis() - t1;
             //refreshDate = new Date();
-            _logger.LogWarning($"JGraph refresh() - replacing graph with newGraph, elapsed ms: {RefreshMs}");
-            graph = newGraph;
+            _logger.LogWarning($"JGraph refresh() - replacing Graph with newGraph, elapsed ms: {RefreshMs}");
+            Graph = newGraph;
           }
         }
       }
       catch (Exception ex)
       {
+        _logger.LogError(ex, ex.Message);
         //ex.printStackTrace();
       }
     }
 
     public bool IsVertexPresent(string v)
     {
-      if (v != null)
+      if (Graph != null && v != null)
       {
-        return graph.containsVertex(v);
+        if (Graph.IsDirected)
+        {
+          return ((IBidirectionalGraph<string, Edge<string>>)Graph).ContainsVertex(v);
+        }
+        else
+        {
+          return ((IUndirectedGraph<string, Edge<string>>)Graph).ContainsVertex(v);
+        }
       }
       return false;
     }
 
-    private EdgeStruct? ParseDefaultEdge(DefaultEdge e)
+    private EdgeStruct? ParseDefaultEdge(Edge<string>? e)
     {
-
       if (e != null)
       {
-        string[] tokens = e.ToString().split(":");
+        string[] tokens = e.ToString().Split(":");
         if (tokens.Length == 2)
         {
           EdgeStruct edgeStruct = new EdgeStruct();
