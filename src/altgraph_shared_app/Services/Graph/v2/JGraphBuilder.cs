@@ -1,3 +1,4 @@
+using System.Text.Json;
 using altgraph_shared_app.Models.Imdb;
 using altgraph_shared_app.Options;
 using Microsoft.Azure.Cosmos;
@@ -27,7 +28,7 @@ namespace altgraph_shared_app.Services.Graph.v2
       _imdbOptions = imdbOptions.Value;
     }
 
-    public IMutableGraph<string, Edge<string>>? BuildImdbGraph()
+    public async Task<IMutableGraph<string, Edge<string>>?> BuildImdbGraphAsync()
     {
       _logger.LogWarning($"buildImdbGraph, source:   {Source}");
       _logger.LogWarning($"buildImdbGraph, directed: {Directed}");
@@ -39,7 +40,7 @@ namespace altgraph_shared_app.Services.Graph.v2
           case Constants.IMDB_GRAPH_SOURCE_DISK:
             return LoadImdbGraphFromDisk(Directed);
           case Constants.IMDB_GRAPH_SOURCE_COSMOS:
-            return LoadImdbGraphFromCosmos(Directed);
+            return await LoadImdbGraphFromCosmosAsync(Directed);
           default:
             _logger.LogWarning($"undefined graph source: {Source}");
             return null;
@@ -47,10 +48,9 @@ namespace altgraph_shared_app.Services.Graph.v2
       }
       catch (Exception ex)
       {
-        //ex.printStackTrace();
+        _logger.LogError(ex, $"buildImdbGraph, exception: {ex.Message}");
         throw ex;
       }
-      //return null;
     }
 
     private IMutableGraph<string, Edge<string>> CreateGraphObject(bool directed)
@@ -59,12 +59,10 @@ namespace altgraph_shared_app.Services.Graph.v2
 
       if (directed)
       {
-        //graph = new DirectedMultigraph(DefaultEdge.class);
         graph = new BidirectionalGraph<string, Edge<string>>();
       }
       else
       {
-        //graph = new Multigraph(DefaultEdge.class);
         graph = new UndirectedGraph<string, Edge<string>>();
       }
       return graph;
@@ -125,7 +123,7 @@ namespace altgraph_shared_app.Services.Graph.v2
       // return graph;
     }
 
-    private IMutableGraph<string, Edge<string>> LoadImdbGraphFromCosmos(bool directed)
+    private async Task<IMutableGraph<string, Edge<string>>> LoadImdbGraphFromCosmosAsync(bool directed)
     {
       Uri = _cosmosOptions.ConnectionString;
       //Key = _cosmosOptions.Key;
@@ -143,17 +141,16 @@ namespace altgraph_shared_app.Services.Graph.v2
       long movieNodesCreated = 0;
       long personNodesCreated = 0;
       long edgesCreated = 0;
-      string sql = "select * from c where c.pk = '" + Constants.DOCTYPE_MOVIE_SEED + "'";
+      var sql = new QueryDefinition("select * from c where c.pk = @pk")
+        .WithParameter("@pk", Constants.DOCTYPE_MOVIE_SEED);
       int pageSize = 1000;
-      string continuationToken = null;
-      //CosmosQueryRequestOptions queryOptions = new CosmosQueryRequestOptions();
+      string continuationToken = string.Empty;
 
       _logger.LogWarning("uri:    " + Uri);
       _logger.LogWarning("key:    " + Key);
       _logger.LogWarning("dbName: " + DbName);
-      _logger.LogWarning("sql:    " + sql);
+      _logger.LogWarning("sql:    " + sql.QueryText);
 
-      //CheckMemory(true, true, "loadImdbGraphFromCosmos - start");
       //long startMs = System.currentTimeMillis();
 
       client = new CosmosClientBuilder(
@@ -165,113 +162,117 @@ namespace altgraph_shared_app.Services.Graph.v2
               .Build();
 
       database = client.GetDatabase(DbName);
-      _logger.LogWarning("client connected to database Id: " + database.getId());
+      _logger.LogWarning($"client connected to database Id: {database.Id}");
 
       container = database.GetContainer(Constants.IMDB_SEED_CONTAINER_NAME);
-      _logger.LogWarning("container: " + container.Id);
+      _logger.LogWarning($"container: {container.Id}");
 
       //long dbConnectMs = System.currentTimeMillis();
 
       try
       {
-        do
+        using (var feedResponseIterator =
+                container.GetItemQueryIterator<dynamic>(sql, continuationToken, new QueryRequestOptions { MaxItemCount = pageSize }))
         {
-          Iterable<FeedResponse<SeedDocument>> feedResponseIterator =
-                  container.queryItems(sql, queryOptions, SeedDocument.class).byPage(
-                          continuationToken, pageSize).toIterable();  // Convert Asynch Flux to Iterable
+          do
+          {
+            while (feedResponseIterator.HasMoreResults)
+            {
+              foreach (FeedResponse<dynamic> page in await feedResponseIterator.ReadNextAsync())
+              {
+                foreach (SeedDocument doc in page.Resource)
+                {
+                  documentsRead++;
+                  if ((documentsRead % 10000) == 0)
+                  {
+                    _logger.LogWarning($"{documentsRead} -> {JsonSerializer.Serialize(doc)}");
+                  }
+                  string tconst = doc.TargetId;
+                  ((IMutableVertexSet<string>)graph).AddVertex(tconst);
+                  movieNodesCreated++;
 
-foreach (FeedResponse<SeedDocument> page : feedResponseIterator)
-{
-  foreach (SeedDocument doc : page.GetResults())
-  {
-    documentsRead++;
-    if ((documentsRead % 10000) == 0)
-    {
-      _logger.LogWarning("" + documentsRead + " -> " + doc.asJson(false));
-    }
-  string tconst = doc.GetTargetId();
-  graph.AddVertex(tconst);
-movieNodesCreated++;
+                  for (int i = 0; i < doc.AdjacentVertices.Count(); i++)
+                  {
+                    string nconst = doc.AdjacentVertices[i];
+                    if (!((IImplicitVertexSet<string>)graph).ContainsVertex(nconst))
+                    {
+                      ((IMutableVertexSet<string>)graph).AddVertex(nconst);
+                      personNodesCreated++;
+                    }
+                    ((IMutableEdgeListGraph<string, Edge<string>>)graph).AddEdge(new Edge<string>(nconst, tconst));  // person-to-movie
+                    edgesCreated++;
 
-for (int i = 0; i<doc.GetAdjacentVertices().Count(); i++)
-{
-  string nconst = doc.GetAdjacentVertices().get(i);
-  if (!graph.ContainsVertex(nconst))
-  {
-    graph.AddVertex(nconst);
-    personNodesCreated++;
-  }
-graph.AddEdge(nconst, tconst);  // person-to-movie
-edgesCreated++;
-
-if (directed)
-{
-  // just a single edge between vertices
-}
-else
-{
-  graph.AddEdge(tconst, nconst);  // movie-to-person
-  edgesCreated++;
-}
-}
-
-  }
-  requestCharge = requestCharge + page.getRequestCharge();
-continuationToken = page.getContinuationToken();
-}
+                    if (directed)
+                    {
+                      // just a single edge between vertices
+                    }
+                    else
+                    {
+                      ((IMutableEdgeListGraph<string, Edge<string>>)graph).AddEdge(new Edge<string>(tconst, nconst));  // movie-to-person
+                      edgesCreated++;
+                    }
+                  }
+                }
+                requestCharge = requestCharge + page.RequestCharge;
+                continuationToken = page.ContinuationToken;
+              }
             }
-            while (continuationToken != null) ;
-        } catch (Exception t)
-{
-  //t.printStackTrace();
-}
-// long finishMs = System.currentTimeMillis();
-// long dbConnectElapsed = dbConnectMs - startMs;
-// long dbReadingElapsed = finishMs - dbConnectMs;
-// double dbReadingSeconds = (double)dbReadingElapsed / 1000.0;
-// long totalElapsed = finishMs - startMs;
+          }
+          while (continuationToken != null);
+        }
+      }
+      catch (Exception ex)
+      {
+        //t.printStackTrace();
+        _logger.LogError(ex, $"loadImdbGraphFromCosmos - exception: {ex.Message}");
+      }
+      // long finishMs = System.currentTimeMillis();
+      // long dbConnectElapsed = dbConnectMs - startMs;
+      // long dbReadingElapsed = finishMs - dbConnectMs;
+      // double dbReadingSeconds = (double)dbReadingElapsed / 1000.0;
+      // long totalElapsed = finishMs - startMs;
 
-// double ruPerSec = (double)requestCharge / dbReadingSeconds;
+      // double ruPerSec = (double)requestCharge / dbReadingSeconds;
 
-CheckMemory(true, true, "loadImdbGraphFromCosmos - after building graph");
-_logger.LogWarning("loadImdbGraphFromCosmos - documentsRead:      " + documentsRead);
-_logger.LogWarning("loadImdbGraphFromCosmos - movieNodesCreated:  " + movieNodesCreated);
-_logger.LogWarning("loadImdbGraphFromCosmos - personNodesCreated: " + personNodesCreated);
-_logger.LogWarning("loadImdbGraphFromCosmos - edgesCreated:       " + edgesCreated);
-_logger.LogWarning("loadImdbGraphFromCosmos - requestCharge:      " + requestCharge);
-_logger.LogWarning("loadImdbGraphFromCosmos - ru per second:      " + ruPerSec);
-_logger.LogWarning("loadImdbGraphFromCosmos - db connect ms:      " + dbConnectElapsed);
-_logger.LogWarning("loadImdbGraphFromCosmos - db read ms:         " + dbReadingElapsed);
-_logger.LogWarning("loadImdbGraphFromCosmos - total elapsed ms:   " + totalElapsed);
-return graph;
+      //CheckMemory(true, true, "loadImdbGraphFromCosmos - after building graph");
+      _logger.LogWarning($"loadImdbGraphFromCosmos - documentsRead:      {documentsRead}");
+      _logger.LogWarning($"loadImdbGraphFromCosmos - movieNodesCreated:  {movieNodesCreated}");
+      _logger.LogWarning($"loadImdbGraphFromCosmos - personNodesCreated: {personNodesCreated}");
+      _logger.LogWarning($"loadImdbGraphFromCosmos - edgesCreated:       {edgesCreated}");
+      _logger.LogWarning($"loadImdbGraphFromCosmos - requestCharge:      {requestCharge}");
+      // _logger.LogWarning("loadImdbGraphFromCosmos - ru per second:      " + ruPerSec);
+      // _logger.LogWarning("loadImdbGraphFromCosmos - db connect ms:      " + dbConnectElapsed);
+      // _logger.LogWarning("loadImdbGraphFromCosmos - db read ms:         " + dbReadingElapsed);
+      // _logger.LogWarning("loadImdbGraphFromCosmos - total elapsed ms:   " + totalElapsed);
+      return graph;
     }
 
-    protected MemoryStats CheckMemory(bool doGc, bool display, string note)
-{
-  // if (doGc)
-  // {
-  //   System.gc();
-  // }
-  // MemoryStats ms = new MemoryStats(note);
-  // if (display)
-  // {
-  //   try
-  //   {
-  //     sysout(ms.asDelimitedHeaderLine("|"));
-  //     sysout(ms.asDelimitedDataLine("|"));
-  //   }
-  //   catch (Exception e)
-  //   {
-  //     sysout("error serializing MemoryStats to JSON");
-  //   }
-  // }
-  // return ms;
-}
+    // protected MemoryStats CheckMemory(bool doGc, bool display, string note)
+    // {
+    //   if (doGc)
+    //   {
+    //     System.gc();
+    //   }
+    //   MemoryStats ms = new MemoryStats(note);
+    //   if (display)
+    //   {
+    //     try
+    //     {
+    //       sysout(ms.asDelimitedHeaderLine("|"));
+    //       sysout(ms.asDelimitedDataLine("|"));
+    //     }
+    //     catch (Exception e)
+    //     {
+    //       sysout("error serializing MemoryStats to JSON");
+    //     }
+    //   }
+    //   return ms;
+    // }
 
-// protected void sysout(string s)
-// {
-//   System.out.println(s);
-// }
+    // protected void sysout(string s)
+    // {
+    //   System.out.println(s);
+    // }
 
-}
+  }
 }

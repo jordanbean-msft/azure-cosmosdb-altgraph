@@ -1,7 +1,5 @@
-using altgraph_shared_app.Options;
 using altgraph_shared_app.Services.Graph.v2.Structs;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using QuikGraph;
 using QuikGraph.Algorithms;
 
@@ -34,9 +32,6 @@ namespace altgraph_shared_app.Services.Graph.v2
       return counts;
     }
 
-    /**
-     * Find the shortest path with the DijkstraShortestPath class in JGraphT.
-     */
     public IEnumerable<Edge<string>>? GetShortestPath(string v1, string v2)
     {
       _logger.LogWarning($"getShortestPath, v1: {v1} to v2: {v2}");
@@ -49,7 +44,6 @@ namespace altgraph_shared_app.Services.Graph.v2
       {
         return null;
       }
-      //GraphPath<VertexValueStruct, Edge<VertexValueStruct>> path = DijkstraShortestPath.findPathBetween(Graph, v1, v2);
       Func<Edge<string>, double> edgeCost = edge => 1; // Constant cost
       IEnumerable<Edge<string>>? path = null;
 
@@ -74,9 +68,9 @@ namespace altgraph_shared_app.Services.Graph.v2
         else
         {
           //_logger.LogWarning("elapsed milliseconds: " + elapsed);
-          _logger.LogWarning("path Count:       " + path.Count());
-          _logger.LogWarning("path StartVertex:  " + path.First());
-          _logger.LogWarning("path EndVertex:    " + path.Last());
+          _logger.LogWarning($"path Count:       {path.Count()}");
+          _logger.LogWarning($"path StartVertex:  {path.First()}");
+          _logger.LogWarning($"path EndVertex:    {path.Last()}");
         }
       }
       return path;
@@ -260,7 +254,7 @@ namespace altgraph_shared_app.Services.Graph.v2
       // return kc.getScores();
     }
 
-    public void Refresh()
+    public async void Refresh()
     {
       //long t1 = System.currentTimeMillis();
       IMutableGraph<string, Edge<string>>? newGraph = null;
@@ -270,7 +264,7 @@ namespace altgraph_shared_app.Services.Graph.v2
       {
         if (Domain.Equals(Constants.GRAPH_DOMAIN_IMDB, StringComparison.OrdinalIgnoreCase))
         {
-          newGraph = _graphBuilder.BuildImdbGraph();
+          newGraph = await _graphBuilder.BuildImdbGraphAsync();
           if (newGraph != null)
           {
             //refreshMs = System.currentTimeMillis() - t1;
@@ -283,7 +277,6 @@ namespace altgraph_shared_app.Services.Graph.v2
       catch (Exception ex)
       {
         _logger.LogError(ex, ex.Message);
-        //ex.printStackTrace();
       }
     }
 
