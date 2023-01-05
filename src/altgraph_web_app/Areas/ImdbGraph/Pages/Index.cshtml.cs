@@ -10,6 +10,9 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Azure.CosmosRepository;
 using Microsoft.Extensions.Options;
 using altgraph_shared_app;
+using altgraph_shared_app.Repositories.Imdb;
+using altgraph_shared_app.Models.Imdb;
+using altgraph_shared_app.Services.Graph.v2;
 
 namespace altgraph_web_app.Areas.ImdbGraph.Pages;
 
@@ -17,7 +20,7 @@ public class IndexModel : PageModel
 {
   private readonly ILogger<IndexModel> _logger;
   [BindProperty]
-  public string FormFunction { get; set; } = string.Empty;
+  public FormFunctionEnum FormFunction { get; set; } = FormFunctionEnum.GraphStats;
   [BindProperty]
   public string Value1 { get; set; } = string.Empty;
   [BindProperty]
@@ -28,23 +31,29 @@ public class IndexModel : PageModel
   public string? NodesCsv { get; set; } = string.Empty;
   [BindProperty(SupportsGet = true)]
   public string? EdgesCsv { get; set; } = string.Empty;
-  private readonly LibraryRepository _libraryRepository;
-  private readonly AuthorRepository _authorRepository;
-  private readonly TripleRepository _tripleRepository;
-  private readonly Cache _cache;
+  private IJGraph _jGraph;
+  private readonly MovieRepository _movieRepository;
+  private readonly PersonRepository _personRepository;
+  private readonly ICache _cache;
   private readonly CacheOptions _cacheOptions;
   private readonly PathsOptions _pathsOptions;
+  private readonly ImdbOptions _imdbOptions;
 
-  public IndexModel(ILogger<IndexModel> logger, IRepository<Library> libraryRepository, IRepository<Author> authorRepository, IRepository<Triple> tripleRepository, Cache cache, IOptions<CacheOptions> cacheOptions, IOptions<PathsOptions> pathsOptions)
+  public IndexModel(ILogger<IndexModel> logger, IRepository<Movie> movieRepository, IRepository<Person> personRepository, ICache cache, IOptions<CacheOptions> cacheOptions, IOptions<PathsOptions> pathsOptions, IOptions<ImdbOptions> imdbOptions, IJGraph jgraph)
   {
     _logger = logger;
-    _libraryRepository = new LibraryRepository(libraryRepository);
-    _authorRepository = new AuthorRepository(authorRepository);
-    _tripleRepository = new TripleRepository(tripleRepository);
+    _movieRepository = new MovieRepository(movieRepository);
+    _personRepository = new PersonRepository(personRepository);
     _cache = cache;
     _logger = logger;
     _cacheOptions = cacheOptions.Value;
     _pathsOptions = pathsOptions.Value;
+    _imdbOptions = imdbOptions.Value;
+    _jGraph = jgraph;
+
+    int[] counts = _jGraph.GetVertexAndEdgeCounts();
+    _logger.LogWarning($"jgraph vertices: {counts[0]}");
+    _logger.LogWarning($"jgraph edges:    {counts[1]}");
   }
 
   public void OnGet()
@@ -60,24 +69,43 @@ public class IndexModel : PageModel
 
     DateTime start = DateTime.Now;
 
+    TranslateShortcutValues();
+
+    _logger.LogWarning("formObject, getFormFunction:     " + FormFunction);
+    _logger.LogWarning("formObject, getValue1:           " + Value1);
+    _logger.LogWarning("formObject, getValue2:           " + Value2);
+    _logger.LogWarning("formObject, getSessionId (form): " + HttpContext.Session.Id);
     try
     {
-      if (AuthorCheckBox)
+      switch (FormFunction)
       {
-        await HandleAuthorSearchAsync();
+        case FormFunctionEnum.GraphStats:
+          await HandleGraphStatsAsync();
+          break;
+        case FormFunctionEnum.PageRank:
+          if (!IsValue1AnInteger())
+          {
+            Value1 = "100";
+          }
+          await HandlePageRankAsync();
+          break;
+        case FormFunctionEnum.Network:
+          if (!IsValue2AnInteger())
+          {
+            Value2 = "1";
+          }
+          await HandleNetworkAsync();
+          break;
+        case FormFunctionEnum.ShortestPath:
+          await HandleShortestPathAsync();
+          break;
+        default:
+          throw new NotImplementedException(FormFunction.ToString());
       }
-      else
-      {
-        await HandleLibrarySearchAsync();
-      }
-
-      Task[] tasks = { GetNodesCsvAsync(), GetEdgesCsvAsync() };
-
-      Task.WaitAll(tasks);
     }
     catch (Exception ex)
     {
-      _logger.LogError(ex.Message);
+      _logger.LogError(ex, ex.Message);
     }
 
     DateTime end = DateTime.Now;
@@ -87,190 +115,103 @@ public class IndexModel : PageModel
     return Page();
   }
 
-  private async Task HandleAuthorSearchAsync()
+  private Task HandleShortestPathAsync()
+  {
+    throw new NotImplementedException();
+  }
+
+  private Task HandleNetworkAsync()
+  {
+    throw new NotImplementedException();
+  }
+
+  private Task HandlePageRankAsync()
+  {
+    throw new NotImplementedException();
+  }
+
+  private Task HandleGraphStatsAsync()
+  {
+    throw new NotImplementedException();
+  }
+
+  public void TranslateShortcutValues()
+  {
+    if (Value1.Equals("kb", StringComparison.InvariantCultureIgnoreCase))
+    {
+      Value1 = ImdbConstants.PERSON_KEVIN_BACON;
+    }
+    if (Value1.Equals("cr", StringComparison.InvariantCultureIgnoreCase))
+    {
+      Value1 = ImdbConstants.PERSON_CHARLOTTE_RAMPLING;
+    }
+    if (Value1.Equals("jr", StringComparison.InvariantCultureIgnoreCase))
+    {
+      Value1 = ImdbConstants.PERSON_JULIA_ROBERTS;
+    }
+    if (Value1.Equals("jl", StringComparison.InvariantCultureIgnoreCase))
+    {
+      Value1 = ImdbConstants.PERSON_JENNIFER_LAWRENCE;
+    }
+    if (Value1.Equals("fl", StringComparison.InvariantCultureIgnoreCase))
+    {
+      Value1 = ImdbConstants.MOVIE_FOOTLOOSE;
+    }
+
+    if (Value2.Equals("kb", StringComparison.InvariantCultureIgnoreCase))
+    {
+      Value2 = ImdbConstants.PERSON_KEVIN_BACON;
+    }
+    if (Value2.Equals("cr", StringComparison.InvariantCultureIgnoreCase))
+    {
+      Value2 = ImdbConstants.PERSON_CHARLOTTE_RAMPLING;
+    }
+    if (Value2.Equals("jr", StringComparison.InvariantCultureIgnoreCase))
+    {
+      Value2 = ImdbConstants.PERSON_JULIA_ROBERTS;
+    }
+    if (Value2.Equals("jl", StringComparison.InvariantCultureIgnoreCase))
+    {
+      Value2 = ImdbConstants.PERSON_JENNIFER_LAWRENCE;
+    }
+    if (Value2.Equals("fl", StringComparison.InvariantCultureIgnoreCase))
+    {
+      Value2 = ImdbConstants.MOVIE_FOOTLOOSE;
+    }
+  }
+
+  public bool IsValue1AnInteger()
   {
     try
     {
-      string libName = SubjectName;
-      Author? author = ReadAuthorByLabel(libName);
-      if (author != null)
-      {
-        TripleQueryStruct tripleQueryStruct = await ReadTriplesAsync(UseCachedTriples(CacheOpts));
-        GraphBuilder graphBuilder = new GraphBuilder(author, tripleQueryStruct, _logger);
-        Graph graph = graphBuilder.BuildAuthorGraph(author);
-        D3CsvBuilder d3CsvBuilder = new D3CsvBuilder(graph, _pathsOptions, _logger);
-        await d3CsvBuilder.BuildBillOfMaterialCsvAsync(GraphDepth);
-        d3CsvBuilder.Finish();
-      }
+      int.Parse(Value1);
+      return true;
     }
-    catch (Exception ex)
-    {
-      _logger.LogError(ex.Message);
-    }
-  }
-
-  private async Task HandleLibrarySearchAsync()
-  {
-    try
-    {
-      string libName = SubjectName;
-      Library? library = await ReadLibraryAsync(libName, UseCachedLibrary(CacheOpts));
-      if (library != null)
-      {
-        TripleQueryStruct tripleQueryStruct = await ReadTriplesAsync(UseCachedTriples(CacheOpts));
-        GraphBuilder graphBuilder = new GraphBuilder(library, tripleQueryStruct, _logger);
-        Graph graph = graphBuilder.BuildLibraryGraph(GraphDepth);
-        D3CsvBuilder d3CsvBuilder = new D3CsvBuilder(graph, _pathsOptions, _logger);
-        await d3CsvBuilder.BuildBillOfMaterialCsvAsync(GraphDepth);
-        d3CsvBuilder.Finish();
-      }
-    }
-    catch (Exception ex)
-    {
-      _logger.LogError(ex.Message);
-    }
-  }
-
-  private Author? ReadAuthorByLabel(string label)
-  {
-    Author? author = null;
-    IEnumerable<Author> authors = _authorRepository.FindByLabelAsync(label).Result;
-    foreach (Author a in authors)
-    {
-      author = a;
-    }
-    return author;
-  }
-
-  private async Task<TripleQueryStruct> ReadTriplesAsync(bool useCache)
-  {
-    if (useCache)
-    {
-      TripleQueryStruct? returnValue = await _cache.GetTriplesAsync();
-      if (returnValue != null)
-      {
-        return returnValue;
-      }
-    }
-
-    string lob = Constants.LOB_NPM_LIBRARIES;
-    string subject = "library";
-    TripleQueryStruct tripleQueryStruct = new();
-    tripleQueryStruct.Sql = "dynamic";
-    tripleQueryStruct.Start();
-
-    string pk = "triple|" + Constants.DEFAULT_TENANT;
-    IEnumerable<Triple> triples = _tripleRepository.GetByPkLobAndSubjectsAsync(pk, lob, subject, subject).Result;
-    foreach (Triple triple in triples)
-    {
-      Triple t = triple;
-      t.SetKeyFields();
-      tripleQueryStruct.Documents.Add(t);
-    }
-    tripleQueryStruct.Stop();
-    try
-    {
-      await _cache.PutTriplesAsync(tripleQueryStruct);
-    }
-    catch (Exception ex)
-    {
-      _logger.LogError(ex.Message);
-    }
-    return tripleQueryStruct;
-  }
-
-  private static bool UseCachedLibrary(string? cacheOpts)
-  {
-    if (cacheOpts == null)
+    catch (FormatException)
     {
       return false;
     }
-
-    return cacheOpts.ToUpper().Contains('L');
   }
 
-  private static bool UseCachedTriples(string? cacheOpts)
+  public bool IsValue2AnInteger()
   {
-    if (cacheOpts == null)
+    try
+    {
+      int.Parse(Value2);
+      return true;
+    }
+    catch (FormatException)
     {
       return false;
     }
-
-    return cacheOpts.ToUpper().Contains('T');
   }
 
-  private async Task GetNodesCsvAsync()
+  public String ReloadFlag()
   {
-    NodesCsv = await ReadCsvAsync(_pathsOptions.NodesCsvFile);
-  }
-
-  private async Task GetEdgesCsvAsync()
-  {
-    EdgesCsv = await ReadCsvAsync(_pathsOptions.EdgesCsvFile);
-  }
-
-  public async Task OnGetLibraryAsJsonAsync(string libraryName)
-  {
-    _logger.LogDebug($"getLibraryAsJson, libraryName: {libraryName}");
-
-    Library? library = await ReadLibraryAsync(libraryName, false);
-    if (library != null)
+    if (Value1.ToLower().Contains("reload"))
     {
-      try
-      {
-        LibraryAsJson = JsonSerializer.Serialize(library);
-      }
-      catch (Exception e)
-      {
-        _logger.LogError(e.StackTrace);
-        LibraryAsJson = "{}";
-      }
+      return "reload";
     }
-    else
-    {
-      LibraryAsJson = "{}";
-    }
-  }
-
-  private async Task<Library?> ReadLibraryAsync(string libName, bool useCache)
-  {
-    Library? lib = null;
-
-    if (useCache)
-    {
-      lib = await _cache.GetLibraryAsync(libName);
-      if (lib != null)
-      {
-        return lib;
-      }
-    }
-
-    IEnumerable<Library> libraries = _libraryRepository.FindByPkAndTenantAndDoctypeAsync(libName, _cacheOptions.Tenant, "library").Result;
-    foreach (Library library in libraries)
-    {
-      lib = library;
-      lib.GraphKey = lib.CalculateGraphKey();
-      try
-      {
-        await _cache.PutLibraryAsync(lib);
-      }
-      catch (Exception ex)
-      {
-        _logger.LogError(ex.Message);
-      }
-    }
-    return lib;
-  }
-
-  private static async Task<string> ReadCsvAsync(string path)
-  {
-    if (System.IO.File.Exists(path))
-    {
-      return await System.IO.File.ReadAllTextAsync(path);
-    }
-    else
-    {
-      return string.Empty;
-    }
+    return "no";
   }
 }

@@ -1,11 +1,13 @@
+using altgraph_shared_app.Options;
 using altgraph_shared_app.Services.Graph.v2.Structs;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using QuikGraph;
 using QuikGraph.Algorithms;
 
 namespace altgraph_shared_app.Services.Graph.v2
 {
-  public class JGraph
+  public class JGraph : IJGraph
   {
     public string Domain { get; set; } = string.Empty;
     public string Source { get; set; } = string.Empty;
@@ -14,21 +16,32 @@ namespace altgraph_shared_app.Services.Graph.v2
     public IMutableGraph<string, Edge<string>>? Graph { get; set; } = null;
     private readonly ILogger _logger;
     private IJGraphBuilder _graphBuilder;
+    private readonly ImdbOptions _imdbOptions;
 
-    public JGraph(string domain, string source, ILogger<JGraph> logger, IJGraphBuilder graphBuilder)
+    public JGraph(ILogger<JGraph> logger, IJGraphBuilder graphBuilder, IOptions<ImdbOptions> imdbOptions)
     {
-      Domain = domain;
-      Source = source;
       _logger = logger;
       _graphBuilder = graphBuilder;
+      _imdbOptions = imdbOptions.Value;
+      Domain = _imdbOptions.GraphDomain;
+      Source = _imdbOptions.GraphSource;
       Refresh();
     }
 
     public int[] GetVertexAndEdgeCounts()
     {
       int[] counts = new int[2];
-      counts[0] = (Graph as IVertexSet<string>)!.Vertices.Count();
-      counts[1] = (Graph as IEdgeSet<string, Edge<string>>)!.Edges.Count();
+
+      if (Graph is IVertexSet<string> graph0)
+      {
+        counts[0] = graph0.Vertices.Count();
+      }
+
+      if (Graph is IEdgeSet<string, Edge<string>> graph1)
+      {
+        counts[1] = graph1.Edges.Count();
+      }
+
       return counts;
     }
 
@@ -113,18 +126,18 @@ namespace altgraph_shared_app.Services.Graph.v2
         {
           if (Graph.IsDirected)
           {
-            foreach (Edge<string> edge in ((IBidirectionalGraph<string, Edge<string>>)Graph)!.InEdges(v))
+            foreach (Edge<string> edge in ((IBidirectionalGraph<string, Edge<string>>)Graph).InEdges(v))
             {
               edges.Add(edge);
             }
-            foreach (Edge<string> edge in ((IBidirectionalGraph<string, Edge<string>>)Graph)!.OutEdges(v))
+            foreach (Edge<string> edge in ((IBidirectionalGraph<string, Edge<string>>)Graph).OutEdges(v))
             {
               edges.Add(edge);
             }
           }
           else
           {
-            foreach (Edge<string> edge in ((IUndirectedGraph<string, Edge<string>>)Graph)!.AdjacentEdges(v))
+            foreach (Edge<string> edge in ((IUndirectedGraph<string, Edge<string>>)Graph).AdjacentEdges(v))
             {
               edges.Add(edge);
             }

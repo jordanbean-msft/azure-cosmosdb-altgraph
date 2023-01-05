@@ -13,11 +13,8 @@
       <a href="https://docs.microsoft.com/en-us/azure/?product=featured" target="_blank">
         <img src="~/images/cosmos-logo-110.png}" alt="Cosmos DB Logo">
       </a>
-      <select asp-for="FormFunction" name="formFunction" id="formFunction" class="form-select">
-        <option value="imdb_stats">Graph Stats</option>
-        <option value="imdb_page_rank">PageRank</option>
-        <option value="imdb_network">Network</option>
-        <option value="imdb_shortest_path">Shortest Path</option>
+      <select asp-for="FormFunction" name="formFunction" id="formFunction" class="form-select"
+        asp-items="Html.GetEnumSelectList<FormFunctionEnum>()">
       </select>
       &nbsp;
       <input type="text" asp-for="Value1" id="value1" name="value1" class="form-control me-2" placeholder=""
@@ -32,9 +29,7 @@
       <span>&nbsp;&nbsp;</span>
     </form>
   </div>
-  <h5 class="d-flex justify-content-center" id="libraryInfo" name="libraryInfo">@Model.LibraryInfo</h5>
-  <div id="graphData" data-nodes-csv="@Model.NodesCsv" data-edges-csv="@Model.EdgesCsv"
-    data-library-as-json="@Model.LibraryAsJson" />
+  <div id="graphData" data-nodes-csv="@Model.NodesCsv" data-edges-csv="@Model.EdgesCsv" />
   <div id="viz">
     <svg style="width:95%;height:1024px;">
       <g></g>

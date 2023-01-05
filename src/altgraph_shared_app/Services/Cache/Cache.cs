@@ -8,7 +8,9 @@ using altgraph_shared_app.Models.Npm;
 
 namespace altgraph_shared_app.Services.Cache
 {
-  public class Cache
+
+
+  public class Cache : ICache
   {
     public string CacheMethod { get; set; } = string.Empty;
     public bool UseRedis { get; set; } = false;

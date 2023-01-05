@@ -16,16 +16,16 @@ namespace altgraph_shared_app.Services.Graph.v2
     public string DbName { get; set; } = string.Empty;
     public string Source { get; set; } = string.Empty;
     public bool Directed { get; set; } = false;
-    private ILogger _logger;
+    private ILogger<JGraphBuilder> _logger;
     private CosmosOptions _cosmosOptions;
     private ImdbOptions _imdbOptions;
 
-    public JGraphBuilder(string source, ILogger logger, IOptions<CosmosOptions> cosmosOptions, IOptions<ImdbOptions> imdbOptions)
+    public JGraphBuilder(ILogger<JGraphBuilder> logger, IOptions<CosmosOptions> cosmosOptions, IOptions<ImdbOptions> imdbOptions)
     {
-      Source = source;
       _logger = logger;
       _cosmosOptions = cosmosOptions.Value;
       _imdbOptions = imdbOptions.Value;
+      Source = _imdbOptions.GraphSource;
     }
 
     public async Task<IMutableGraph<string, Edge<string>>?> BuildImdbGraphAsync()
@@ -49,7 +49,7 @@ namespace altgraph_shared_app.Services.Graph.v2
       catch (Exception ex)
       {
         _logger.LogError(ex, $"buildImdbGraph, exception: {ex.Message}");
-        throw ex;
+        throw;
       }
     }
 

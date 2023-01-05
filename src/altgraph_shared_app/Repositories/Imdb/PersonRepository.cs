@@ -3,10 +3,10 @@ using Microsoft.Azure.CosmosRepository;
 
 namespace altgraph_shared_app.Repositories.Imdb
 {
-  public class ImdbPersonRepository
+  public class PersonRepository
   {
     public IRepository<Person> Persons { get; private set; }
-    public ImdbPersonRepository(IRepository<Person> persons)
+    public PersonRepository(IRepository<Person> persons)
     {
       Persons = persons;
     }
