@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using altgraph_shared_app.Models.Imdb;
 using altgraph_shared_app.Options;
 using Microsoft.Azure.Cosmos;
@@ -144,7 +145,7 @@ namespace altgraph_shared_app.Services.Graph.v2
       var sql = new QueryDefinition("select * from c where c.pk = @pk")
         .WithParameter("@pk", Constants.DOCTYPE_MOVIE_SEED);
       int pageSize = 1000;
-      string continuationToken = string.Empty;
+      string? continuationToken = null;
 
       _logger.LogWarning("uri:    " + Uri);
       _logger.LogWarning("key:    " + Key);
@@ -152,13 +153,19 @@ namespace altgraph_shared_app.Services.Graph.v2
       _logger.LogWarning("sql:    " + sql.QueryText);
 
       //long startMs = System.currentTimeMillis();
-
+      JsonSerializerOptions jsonSerializerOptions = new JsonSerializerOptions()
+      {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+      };
+      CosmosSystemTextJsonSerializer cosmosSystemTextJsonSerializer = new CosmosSystemTextJsonSerializer(jsonSerializerOptions);
       client = new CosmosClientBuilder(
               connectionString: Uri
+
       )
               .WithApplicationPreferredRegions(_cosmosOptions.PreferredLocations)
               .WithConsistencyLevel(ConsistencyLevel.Session)
               .WithContentResponseOnWrite(true)
+              .WithCustomSerializer(cosmosSystemTextJsonSerializer)
               .Build();
 
       database = client.GetDatabase(DbName);
@@ -171,51 +178,51 @@ namespace altgraph_shared_app.Services.Graph.v2
 
       try
       {
-        using (var feedResponseIterator =
-                container.GetItemQueryIterator<dynamic>(sql, continuationToken, new QueryRequestOptions { MaxItemCount = pageSize }))
+        using (FeedIterator<SeedDocument> feedResponseIterator =
+                container.GetItemQueryIterator<SeedDocument>(sql, continuationToken, new QueryRequestOptions { MaxItemCount = pageSize }))
         {
           do
           {
             while (feedResponseIterator.HasMoreResults)
             {
-              foreach (FeedResponse<dynamic> page in await feedResponseIterator.ReadNextAsync())
+              FeedResponse<SeedDocument> page = await feedResponseIterator.ReadNextAsync();
+
+              foreach (SeedDocument doc in page.Resource)
               {
-                foreach (SeedDocument doc in page.Resource)
+                documentsRead++;
+                if ((documentsRead % 10000) == 0)
                 {
-                  documentsRead++;
-                  if ((documentsRead % 10000) == 0)
+                  _logger.LogWarning($"{documentsRead} -> {JsonSerializer.Serialize(doc)}");
+                }
+                string tconst = doc.TargetId;
+                ((IMutableVertexSet<string>)graph).AddVertex(tconst);
+                movieNodesCreated++;
+
+                for (int i = 0; i < doc.AdjacentVertices.Count(); i++)
+                {
+                  string nconst = doc.AdjacentVertices[i];
+                  if (!((IImplicitVertexSet<string>)graph).ContainsVertex(nconst))
                   {
-                    _logger.LogWarning($"{documentsRead} -> {JsonSerializer.Serialize(doc)}");
+                    ((IMutableVertexSet<string>)graph).AddVertex(nconst);
+                    personNodesCreated++;
                   }
-                  string tconst = doc.TargetId;
-                  ((IMutableVertexSet<string>)graph).AddVertex(tconst);
-                  movieNodesCreated++;
+                  ((IMutableEdgeListGraph<string, Edge<string>>)graph).AddEdge(new Edge<string>(nconst, tconst));  // person-to-movie
+                  edgesCreated++;
 
-                  for (int i = 0; i < doc.AdjacentVertices.Count(); i++)
+                  if (directed)
                   {
-                    string nconst = doc.AdjacentVertices[i];
-                    if (!((IImplicitVertexSet<string>)graph).ContainsVertex(nconst))
-                    {
-                      ((IMutableVertexSet<string>)graph).AddVertex(nconst);
-                      personNodesCreated++;
-                    }
-                    ((IMutableEdgeListGraph<string, Edge<string>>)graph).AddEdge(new Edge<string>(nconst, tconst));  // person-to-movie
+                    // just a single edge between vertices
+                  }
+                  else
+                  {
+                    ((IMutableEdgeListGraph<string, Edge<string>>)graph).AddEdge(new Edge<string>(tconst, nconst));  // movie-to-person
                     edgesCreated++;
-
-                    if (directed)
-                    {
-                      // just a single edge between vertices
-                    }
-                    else
-                    {
-                      ((IMutableEdgeListGraph<string, Edge<string>>)graph).AddEdge(new Edge<string>(tconst, nconst));  // movie-to-person
-                      edgesCreated++;
-                    }
                   }
                 }
-                requestCharge = requestCharge + page.RequestCharge;
-                continuationToken = page.ContinuationToken;
               }
+              requestCharge = requestCharge + page.RequestCharge;
+              continuationToken = page.ContinuationToken;
+
             }
           }
           while (continuationToken != null);

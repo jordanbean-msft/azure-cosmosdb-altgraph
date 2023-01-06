@@ -55,7 +55,8 @@ namespace altgraph_shared_app.Services.Graph.v2
 
       if (de != null)
       {
-        string[] tokens = de.ToString().Split(":");
+        //string[] tokens = de.ToString().Split(":");
+        string[] tokens = de.ToString().Split(" -> ");
         if (tokens.Length == 2)
         {
           result[0] = tokens[0].Replace('(', ' ').Trim();

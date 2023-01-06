@@ -8,10 +8,10 @@
   <partial name="_PageTitle" />
   <div asp-fragment="search_form" class="d-flex justify-content-center">
     <form class="d-flex align-items-center" id="searchForm" name="searchForm" method="POST" defaultfocus="formFunction"
-      defaultButton="search">
+      defaultButton="searchButton">
       <span>&nbsp;&nbsp;&nbsp;</span>
       <a href="https://docs.microsoft.com/en-us/azure/?product=featured" target="_blank">
-        <img src="~/images/cosmos-logo-110.png}" alt="Cosmos DB Logo">
+        <img src="~/images/cosmos-logo-110.png" alt="Cosmos DB Logo">
       </a>
       <select asp-for="FormFunction" name="formFunction" id="formFunction" class="form-select"
         asp-items="Html.GetEnumSelectList<FormFunctionEnum>()">
@@ -21,22 +21,32 @@
         aria-label="value 1">
       <input type="text" asp-for="Value2" id="value2" name="value2" class="form-control me-2" placeholder=""
         aria-label="value 2">
-      <button id="search" class="btn btn-outline-primary" type="submit">Search</button>
+      <button id="searchButton" class="btn btn-outline-primary" type="submit">Search</button>
       <span>&nbsp;&nbsp;</span>
       <input type="text" asp-for="ElapsedMs" class="form-control me-3" placeholder="Elapsed ms"
         aria-label="readonly Elapsed ms" readonly value="@Model.ElapsedMs">
       <input type="hidden" asp-for="@HttpContext.Session.Id">
+      <input id="isDataLoading" type="hidden" asp-for="@Model.IsDataLoading">
       <span>&nbsp;&nbsp;</span>
     </form>
   </div>
-  <div id="graphData" data-nodes-csv="@Model.NodesCsv" data-edges-csv="@Model.EdgesCsv" />
-  <div id="viz">
-    <svg style="width:95%;height:1024px;">
-      <g></g>
-    </svg>
-  </div>
+  @{
+    switch (@Model.FormFunction)
+    {
+      case FormFunctionEnum.Network:
+        <partial name="_Network" model="@Model" />
+        break;
+    }
+  }
 </div>
-<script src="~/lib/jquery/dist/jquery.min.js"></script>
-<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-<script src="~/lib/d3/d3.min.js"></script>
-<script src="~/js/graph.js"></script>
+<script type="text|javascript">
+  $(document).ready(function () {
+     $('#searchButton').on('click',
+                    function (event) {
+                      if($('#isDataLoading').value == true ) {
+                                              $('#searchButton').attr('disabled', true);
+                                              $('#searchButton').submit();
+                      }
+                    });
+  });
+</script>

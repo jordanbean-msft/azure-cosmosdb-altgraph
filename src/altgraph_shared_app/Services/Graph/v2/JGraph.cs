@@ -25,7 +25,6 @@ namespace altgraph_shared_app.Services.Graph.v2
       _imdbOptions = imdbOptions.Value;
       Domain = _imdbOptions.GraphDomain;
       Source = _imdbOptions.GraphSource;
-      Refresh();
     }
 
     public int[] GetVertexAndEdgeCounts()
@@ -267,7 +266,7 @@ namespace altgraph_shared_app.Services.Graph.v2
       // return kc.getScores();
     }
 
-    public async void Refresh()
+    public async Task RefreshAsync()
     {
       //long t1 = System.currentTimeMillis();
       IMutableGraph<string, Edge<string>>? newGraph = null;

@@ -62,7 +62,7 @@ builder.Services.AddCosmosRepository(options =>
 });
 builder.Services.AddSingleton<ICache, Cache>();
 builder.Services.AddTransient<IJGraphBuilder, JGraphBuilder>();
-builder.Services.AddScoped<IJGraph, JGraph>();
+builder.Services.AddSingleton<IJGraph, JGraph>();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {

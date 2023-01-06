@@ -38,11 +38,11 @@ public class IndexModel : PageModel
   private readonly LibraryRepository _libraryRepository;
   private readonly AuthorRepository _authorRepository;
   private readonly TripleRepository _tripleRepository;
-  private readonly Cache _cache;
+  private readonly ICache _cache;
   private readonly CacheOptions _cacheOptions;
   private readonly PathsOptions _pathsOptions;
 
-  public IndexModel(ILogger<IndexModel> logger, IRepository<Library> libraryRepository, IRepository<Author> authorRepository, IRepository<Triple> tripleRepository, Cache cache, IOptions<CacheOptions> cacheOptions, IOptions<PathsOptions> pathsOptions)
+  public IndexModel(ILogger<IndexModel> logger, IRepository<Library> libraryRepository, IRepository<Author> authorRepository, IRepository<Triple> tripleRepository, ICache cache, IOptions<CacheOptions> cacheOptions, IOptions<PathsOptions> pathsOptions)
   {
     _logger = logger;
     _libraryRepository = new LibraryRepository(libraryRepository);

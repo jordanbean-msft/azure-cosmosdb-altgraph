@@ -13,6 +13,7 @@ using altgraph_shared_app;
 using altgraph_shared_app.Repositories.Imdb;
 using altgraph_shared_app.Models.Imdb;
 using altgraph_shared_app.Services.Graph.v2;
+using altgraph_shared_app.Services.Graph.v2.Structs;
 
 namespace altgraph_web_app.Areas.ImdbGraph.Pages;
 
@@ -24,13 +25,13 @@ public class IndexModel : PageModel
   [BindProperty]
   public string Value1 { get; set; } = string.Empty;
   [BindProperty]
-  public string Value2 { get; set; } = string.Empty;
+  public string? Value2 { get; set; } = string.Empty;
   [BindProperty]
   public string? ElapsedMs { get; set; } = string.Empty;
   [BindProperty(SupportsGet = true)]
-  public string? NodesCsv { get; set; } = string.Empty;
+  public string? EdgesStruct { get; set; } = string.Empty;
   [BindProperty(SupportsGet = true)]
-  public string? EdgesCsv { get; set; } = string.Empty;
+  public bool IsDataLoading { get; set; } = false;
   private IJGraph _jGraph;
   private readonly MovieRepository _movieRepository;
   private readonly PersonRepository _personRepository;
@@ -71,10 +72,18 @@ public class IndexModel : PageModel
 
     TranslateShortcutValues();
 
-    _logger.LogWarning("formObject, getFormFunction:     " + FormFunction);
-    _logger.LogWarning("formObject, getValue1:           " + Value1);
-    _logger.LogWarning("formObject, getValue2:           " + Value2);
-    _logger.LogWarning("formObject, getSessionId (form): " + HttpContext.Session.Id);
+    _logger.LogWarning($"formObject, getFormFunction:     {FormFunction}");
+    _logger.LogWarning($"formObject, getValue1:           {Value1}");
+    _logger.LogWarning($"formObject, getValue2:           {Value2}");
+    _logger.LogWarning($"formObject, getSessionId (form): {HttpContext.Session.Id}");
+
+    if (_jGraph.Graph == null)
+    {
+      IsDataLoading = true;
+      await _jGraph.RefreshAsync();
+      IsDataLoading = false;
+    }
+
     try
     {
       switch (FormFunction)
@@ -122,7 +131,18 @@ public class IndexModel : PageModel
 
   private Task HandleNetworkAsync()
   {
-    throw new NotImplementedException();
+    _logger.LogDebug($"HandleNetworkAsync, vertex: {Value1}, degree: {Value2}");
+
+    if (Value2 != null)
+    {
+      JStarNetwork? star = _jGraph.StarNetworkFor(Value1, int.Parse(Value2));
+      if (star != null)
+      {
+        EdgesStruct = JsonSerializer.Serialize<EdgesStruct>(star.AsEdgesStruct());
+      }
+    }
+
+    return Task.CompletedTask;
   }
 
   private Task HandlePageRankAsync()
@@ -158,25 +178,28 @@ public class IndexModel : PageModel
       Value1 = ImdbConstants.MOVIE_FOOTLOOSE;
     }
 
-    if (Value2.Equals("kb", StringComparison.InvariantCultureIgnoreCase))
+    if (Value2 != null)
     {
-      Value2 = ImdbConstants.PERSON_KEVIN_BACON;
-    }
-    if (Value2.Equals("cr", StringComparison.InvariantCultureIgnoreCase))
-    {
-      Value2 = ImdbConstants.PERSON_CHARLOTTE_RAMPLING;
-    }
-    if (Value2.Equals("jr", StringComparison.InvariantCultureIgnoreCase))
-    {
-      Value2 = ImdbConstants.PERSON_JULIA_ROBERTS;
-    }
-    if (Value2.Equals("jl", StringComparison.InvariantCultureIgnoreCase))
-    {
-      Value2 = ImdbConstants.PERSON_JENNIFER_LAWRENCE;
-    }
-    if (Value2.Equals("fl", StringComparison.InvariantCultureIgnoreCase))
-    {
-      Value2 = ImdbConstants.MOVIE_FOOTLOOSE;
+      if (Value2.Equals("kb", StringComparison.InvariantCultureIgnoreCase))
+      {
+        Value2 = ImdbConstants.PERSON_KEVIN_BACON;
+      }
+      if (Value2.Equals("cr", StringComparison.InvariantCultureIgnoreCase))
+      {
+        Value2 = ImdbConstants.PERSON_CHARLOTTE_RAMPLING;
+      }
+      if (Value2.Equals("jr", StringComparison.InvariantCultureIgnoreCase))
+      {
+        Value2 = ImdbConstants.PERSON_JULIA_ROBERTS;
+      }
+      if (Value2.Equals("jl", StringComparison.InvariantCultureIgnoreCase))
+      {
+        Value2 = ImdbConstants.PERSON_JENNIFER_LAWRENCE;
+      }
+      if (Value2.Equals("fl", StringComparison.InvariantCultureIgnoreCase))
+      {
+        Value2 = ImdbConstants.MOVIE_FOOTLOOSE;
+      }
     }
   }
 
@@ -195,6 +218,10 @@ public class IndexModel : PageModel
 
   public bool IsValue2AnInteger()
   {
+    if (Value2 == null)
+    {
+      return false;
+    }
     try
     {
       int.Parse(Value2);
