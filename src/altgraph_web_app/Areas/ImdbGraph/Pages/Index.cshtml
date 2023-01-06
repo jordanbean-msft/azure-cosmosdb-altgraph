@@ -26,7 +26,6 @@
       <input type="text" asp-for="ElapsedMs" class="form-control me-3" placeholder="Elapsed ms"
         aria-label="readonly Elapsed ms" readonly value="@Model.ElapsedMs">
       <input type="hidden" asp-for="@HttpContext.Session.Id">
-      <input id="isDataLoading" type="hidden" asp-for="@Model.IsDataLoading">
       <span>&nbsp;&nbsp;</span>
     </form>
   </div>
@@ -39,14 +38,3 @@
     }
   }
 </div>
-<script type="text|javascript">
-  $(document).ready(function () {
-     $('#searchButton').on('click',
-                    function (event) {
-                      if($('#isDataLoading').value == true ) {
-                                              $('#searchButton').attr('disabled', true);
-                                              $('#searchButton').submit();
-                      }
-                    });
-  });
-</script>

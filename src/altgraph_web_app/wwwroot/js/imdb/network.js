@@ -3,21 +3,32 @@ $(document).ready(function () {
     console.log("nodeClicked: " + d.name);
     var imdbConst = d.name;
     $("#vertexInfo").text(imdbConst + " ...");
-    var url = "/get_imdb_vertex/" + imdbConst;
-    $.get(url, function (data) {
-      console.log(data);
-      $("#vertexInfo").text("");
-      if (imdbConst.startsWith("tt")) {
-        var title = data["titleWords"].join(" ");
-        var year = data["year"];
-        $("#vertexInfo").text("movie: " + title + " year: " + year);
-      } else if (imdbConst.startsWith("nm")) {
-        $("#vertexInfo").text(data["primaryNameWords"].join(" "));
-        var name = data["primaryNameWords"].join(" ");
-        var year = data["birthYear"];
-        $("#vertexInfo").text("person: " + name + " born: " + year);
-      }
-    });
+    fetch("?handler=ImdbVertex&imdbConst=" + imdbConst)
+      .then((response) => {
+        return response.json();
+      })
+      .then((responseData) => {
+        //const dataElement = document.querySelector("#graphData");
+        // const data =
+        //   dataElement.dataset.vertexInfo == ""
+        //     ? null
+        //     : JSON.parse(dataElement.dataset.vertexInfo);
+        // var url = "/get_imdb_vertex/" + imdbConst;
+        // $.get(url, function (data) {
+        //   console.log(data);
+        const data = responseData;
+        $("#vertexInfo").text("");
+        if (imdbConst.startsWith("tt")) {
+          var title = data["titleWords"].join(" ");
+          var year = data["year"];
+          $("#vertexInfo").text("movie: " + title + " year: " + year);
+        } else if (imdbConst.startsWith("nm")) {
+          $("#vertexInfo").text(data["primaryNameWords"].join(" "));
+          var name = data["primaryNameWords"].join(" ");
+          var year = data["birthYear"];
+          $("#vertexInfo").text("person: " + name + " born: " + year);
+        }
+      });
   }
   function nodeDblClicked(e, d) {
     console.log("nodeDblClicked: " + d.name);

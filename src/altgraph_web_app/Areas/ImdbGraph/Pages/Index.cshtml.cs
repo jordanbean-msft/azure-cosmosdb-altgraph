@@ -30,8 +30,8 @@ public class IndexModel : PageModel
   public string? ElapsedMs { get; set; } = string.Empty;
   [BindProperty(SupportsGet = true)]
   public string? EdgesStruct { get; set; } = string.Empty;
-  [BindProperty(SupportsGet = true)]
-  public bool IsDataLoading { get; set; } = false;
+  //[BindProperty(SupportsGet = true)]
+  //public string? VertexInfo { get; set; } = string.Empty;
   private IJGraph _jGraph;
   private readonly MovieRepository _movieRepository;
   private readonly PersonRepository _personRepository;
@@ -57,8 +57,56 @@ public class IndexModel : PageModel
     _logger.LogWarning($"jgraph edges:    {counts[1]}");
   }
 
-  public void OnGet()
+  public async Task<JsonResult?> OnGetImdbVertexAsync(string imdbConst)
   {
+    _logger.LogWarning($"OnGetImdbVertexAsync, imdbConst: {imdbConst}");
+
+    try
+    {
+      if (imdbConst.StartsWith("tt"))
+      {
+        Movie? m = await LookupMovieAsync(imdbConst);
+        if (m != null)
+        {
+          //VertexInfo = JsonSerializer.Serialize(m);
+          return new JsonResult(m);
+        }
+      }
+      else if (imdbConst.StartsWith("nm"))
+      {
+        Person? p = await LookupPersonAsync(imdbConst);
+        if (p != null)
+        {
+          //VertexInfo = JsonSerializer.Serialize(p);
+          return new JsonResult(p);
+        }
+      }
+    }
+    catch (Exception ex)
+    {
+      _logger.LogError(ex, ex.Message);
+    }
+    return null;
+  }
+
+  private async Task<Movie?> LookupMovieAsync(String imdbConst)
+  {
+    foreach (Movie movie in await _movieRepository.FindByIdAndPkAsync(imdbConst, imdbConst))
+    {
+      return movie;
+    }
+
+    return null;
+  }
+
+  private async Task<Person?> LookupPersonAsync(String imdbConst)
+  {
+    foreach (Person person in await _personRepository.FindByIdAndPkAsync(imdbConst, imdbConst))
+    {
+      return person;
+    }
+
+    return null;
   }
 
   public async Task<IActionResult> OnPostAsync()
@@ -79,9 +127,7 @@ public class IndexModel : PageModel
 
     if (_jGraph.Graph == null)
     {
-      IsDataLoading = true;
       await _jGraph.RefreshAsync();
-      IsDataLoading = false;
     }
 
     try
