@@ -9,6 +9,8 @@ using altgraph_shared_app.Repositories.Imdb;
 using altgraph_shared_app.Models.Imdb;
 using altgraph_shared_app.Services.Graph.v2;
 using altgraph_shared_app.Services.Graph.v2.Structs;
+using altgraph_shared_app.Util;
+using altgraph_web_app.Models;
 
 namespace altgraph_web_app.Areas.ImdbGraph.Pages;
 
@@ -34,8 +36,9 @@ public class IndexModel : PageModel
   private readonly CacheOptions _cacheOptions;
   private readonly PathsOptions _pathsOptions;
   private readonly ImdbOptions _imdbOptions;
+  private readonly IMemoryStats _memoryStats;
 
-  public IndexModel(ILogger<IndexModel> logger, IRepository<Movie> movieRepository, IRepository<Person> personRepository, ICache cache, IOptions<CacheOptions> cacheOptions, IOptions<PathsOptions> pathsOptions, IOptions<ImdbOptions> imdbOptions, IJGraph jgraph)
+  public IndexModel(ILogger<IndexModel> logger, IRepository<Movie> movieRepository, IRepository<Person> personRepository, ICache cache, IOptions<CacheOptions> cacheOptions, IOptions<PathsOptions> pathsOptions, IOptions<ImdbOptions> imdbOptions, IJGraph jgraph, IMemoryStats memoryStats)
   {
     _logger = logger;
     _movieRepository = new MovieRepository(movieRepository);
@@ -46,10 +49,38 @@ public class IndexModel : PageModel
     _pathsOptions = pathsOptions.Value;
     _imdbOptions = imdbOptions.Value;
     _jGraph = jgraph;
+    _memoryStats = memoryStats;
 
     int[] counts = _jGraph.GetVertexAndEdgeCounts();
     _logger.LogWarning($"jgraph vertices: {counts[0]}");
     _logger.LogWarning($"jgraph edges:    {counts[1]}");
+  }
+
+  public async Task<JsonResult> OnGetGraphStatsAsync(string flag)
+  {
+    _logger.LogWarning($"OnGetGraphStats");
+    long startMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+    if (flag.Equals("reload", StringComparison.OrdinalIgnoreCase))
+    {
+      await _jGraph.RefreshAsync();
+    }
+
+    GraphStatsStruct graphStatsStruct = new GraphStatsStruct();
+    int[] counts = _jGraph.GetVertexAndEdgeCounts();
+    graphStatsStruct.VertexCount = counts[0];
+    graphStatsStruct.EdgeCount = counts[1];
+    graphStatsStruct.Epoch = _memoryStats.Epoch;
+    graphStatsStruct.TotalMb = _memoryStats.TotalMb;
+    graphStatsStruct.FreeMb = _memoryStats.FreeMb;
+    graphStatsStruct.MaxMb = _memoryStats.MaxMb;
+    graphStatsStruct.PctFree = _memoryStats.PctFree;
+    graphStatsStruct.ElapsedMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - startMs;
+    graphStatsStruct.RefreshDate = _jGraph.RefreshDate;
+    graphStatsStruct.RefreshMs = _jGraph.RefreshMs;
+    graphStatsStruct.RefreshSource = _jGraph.Source;
+
+    return new JsonResult(graphStatsStruct);
   }
 
   public async Task<JsonResult?> OnGetImdbVertexAsync(string imdbConst)

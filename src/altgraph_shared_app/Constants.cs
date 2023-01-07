@@ -2,6 +2,10 @@ namespace altgraph_shared_app
 {
   public class Constants
   {
+    public const double KB = 1024;
+    public const double MB = 1024 * 1024;
+    public const double GB = 1024 * 1024 * 1024;
+    //public const double TB = 1024 * 1024 * 1024 * 1024;
     public const string IMDB_GRAPH_SOURCE_COSMOS = "cosmos";
     public const string IMDB_GRAPH_SOURCE_DISK = "disk";
     public const string IMDB_SEED_CONTAINER_NAME = "imdb_seed";
@@ -35,6 +39,7 @@ namespace altgraph_shared_app
     public const string IMDB_MOVIES_OF_INTEREST_FILE = "data/imdb_refined/movies_of_interest.txt";
     public const string IMDB_PEOPLE_OF_INTEREST_FILE = "data/imdb_refined/people_of_interest.txt";
     public const string IMDB_SMALL_TRIPLES_DOCUMENTS_FILE = "data/imdb_refined/sm_triples.json";
+    public const string MEMORY_STATS_BASE = "out/memory_";
 
     // Edge Labels 
     public const int GROUP_MAX = 100;

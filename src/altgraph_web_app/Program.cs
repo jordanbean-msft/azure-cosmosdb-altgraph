@@ -3,6 +3,7 @@ using altgraph_shared_app.Models.Npm;
 using altgraph_shared_app.Options;
 using altgraph_shared_app.Services.Cache;
 using altgraph_shared_app.Services.Graph.v2;
+using altgraph_shared_app.Util;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -60,6 +61,7 @@ builder.Services.AddCosmosRepository(options =>
     throw new ArgumentNullException("CosmosOptions in appsettings.json cannot be null.");
   }
 });
+builder.Services.AddScoped<IMemoryStats, MemoryStats>();
 builder.Services.AddSingleton<ICache, Cache>();
 builder.Services.AddTransient<IJGraphBuilder, JGraphBuilder>();
 builder.Services.AddSingleton<IJGraph, JGraph>();
