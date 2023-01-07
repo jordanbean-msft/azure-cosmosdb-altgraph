@@ -47,7 +47,7 @@ namespace altgraph_shared_app.Services.Graph.v2
     public IEnumerable<Edge<string>>? GetShortestPath(string v1, string v2)
     {
       _logger.LogWarning($"getShortestPath, v1: {v1} to v2: {v2}");
-      //long start = System.currentTimeMillis();
+      long start = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
       if (!IsVertexPresent(v1))
       {
         return null;
@@ -71,7 +71,7 @@ namespace altgraph_shared_app.Services.Graph.v2
         {
           tryGetPaths = (Graph as IUndirectedGraph<string, Edge<string>>).ShortestPathsDijkstra(edgeCost, v1);
         }
-        //long elapsed = System.currentTimeMillis() - start;
+        long elapsed = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - start;
 
         if (!tryGetPaths(v2, out path))
         {
@@ -79,7 +79,7 @@ namespace altgraph_shared_app.Services.Graph.v2
         }
         else
         {
-          //_logger.LogWarning("elapsed milliseconds: " + elapsed);
+          _logger.LogWarning($"elapsed milliseconds: {elapsed}");
           _logger.LogWarning($"path Count:       {path.Count()}");
           _logger.LogWarning($"path StartVertex:  {path.First()}");
           _logger.LogWarning($"path EndVertex:    {path.Last()}");
@@ -91,13 +91,13 @@ namespace altgraph_shared_app.Services.Graph.v2
 
     public EdgesStruct? GetShortestPathAsEdgesStruct(string v1, string v2)
     {
-      //long startMs = System.currentTimeMillis();
+      long startMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
       IEnumerable<Edge<string>>? path = GetShortestPath(v1, v2);
 
       if (path != null)
       {
         EdgesStruct edgesStruct = new EdgesStruct();
-        //edgesStruct.ElapsedMs = (System.currentTimeMillis() - startMs);
+        edgesStruct.ElapsedMs = (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - startMs);
         edgesStruct.Vertex1 = v1;
         edgesStruct.Vertex2 = v2;
         foreach (Edge<string> e in path)
@@ -268,7 +268,7 @@ namespace altgraph_shared_app.Services.Graph.v2
 
     public async Task RefreshAsync()
     {
-      //long t1 = System.currentTimeMillis();
+      long t1 = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
       IMutableGraph<string, Edge<string>>? newGraph = null;
       _logger.LogWarning($"JGraph refresh(), domain: {Domain}");
 
@@ -279,8 +279,8 @@ namespace altgraph_shared_app.Services.Graph.v2
           newGraph = await _graphBuilder.BuildImdbGraphAsync();
           if (newGraph != null)
           {
-            //refreshMs = System.currentTimeMillis() - t1;
-            //refreshDate = new Date();
+            RefreshMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - t1;
+            RefreshDate = DateTime.Now;
             _logger.LogWarning($"JGraph refresh() - replacing Graph with newGraph, elapsed ms: {RefreshMs}");
             Graph = newGraph;
           }

@@ -152,7 +152,7 @@ namespace altgraph_shared_app.Services.Graph.v2
       _logger.LogWarning("dbName: " + DbName);
       _logger.LogWarning("sql:    " + sql.QueryText);
 
-      //long startMs = System.currentTimeMillis();
+      long startMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
       JsonSerializerOptions jsonSerializerOptions = new JsonSerializerOptions()
       {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
@@ -174,7 +174,7 @@ namespace altgraph_shared_app.Services.Graph.v2
       container = database.GetContainer(Constants.IMDB_SEED_CONTAINER_NAME);
       _logger.LogWarning($"container: {container.Id}");
 
-      //long dbConnectMs = System.currentTimeMillis();
+      long dbConnectMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
       try
       {
@@ -233,13 +233,14 @@ namespace altgraph_shared_app.Services.Graph.v2
         //t.printStackTrace();
         _logger.LogError(ex, $"loadImdbGraphFromCosmos - exception: {ex.Message}");
       }
-      // long finishMs = System.currentTimeMillis();
-      // long dbConnectElapsed = dbConnectMs - startMs;
-      // long dbReadingElapsed = finishMs - dbConnectMs;
-      // double dbReadingSeconds = (double)dbReadingElapsed / 1000.0;
-      // long totalElapsed = finishMs - startMs;
 
-      // double ruPerSec = (double)requestCharge / dbReadingSeconds;
+      long finishMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+      long dbConnectElapsed = dbConnectMs - startMs;
+      long dbReadingElapsed = finishMs - dbConnectMs;
+      double dbReadingSeconds = (double)dbReadingElapsed / 1000.0;
+      long totalElapsed = finishMs - startMs;
+
+      double ruPerSec = (double)requestCharge / dbReadingSeconds;
 
       //CheckMemory(true, true, "loadImdbGraphFromCosmos - after building graph");
       _logger.LogWarning($"loadImdbGraphFromCosmos - documentsRead:      {documentsRead}");
@@ -247,10 +248,10 @@ namespace altgraph_shared_app.Services.Graph.v2
       _logger.LogWarning($"loadImdbGraphFromCosmos - personNodesCreated: {personNodesCreated}");
       _logger.LogWarning($"loadImdbGraphFromCosmos - edgesCreated:       {edgesCreated}");
       _logger.LogWarning($"loadImdbGraphFromCosmos - requestCharge:      {requestCharge}");
-      // _logger.LogWarning("loadImdbGraphFromCosmos - ru per second:      " + ruPerSec);
-      // _logger.LogWarning("loadImdbGraphFromCosmos - db connect ms:      " + dbConnectElapsed);
-      // _logger.LogWarning("loadImdbGraphFromCosmos - db read ms:         " + dbReadingElapsed);
-      // _logger.LogWarning("loadImdbGraphFromCosmos - total elapsed ms:   " + totalElapsed);
+      _logger.LogWarning($"loadImdbGraphFromCosmos - ru per second:      {ruPerSec}");
+      _logger.LogWarning($"loadImdbGraphFromCosmos - db connect ms:      {dbConnectElapsed}");
+      _logger.LogWarning($"loadImdbGraphFromCosmos - db read ms:         {dbReadingElapsed}");
+      _logger.LogWarning($"loadImdbGraphFromCosmos - total elapsed ms:   {totalElapsed}");
       return graph;
     }
 
