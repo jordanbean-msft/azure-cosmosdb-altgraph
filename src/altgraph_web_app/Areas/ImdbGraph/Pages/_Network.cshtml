@@ -6,7 +6,6 @@
   <partial name="_Graph" />
 </div>
 
-@* <script src="~/js/imdb/network.js" type="text/javascript" /> *@
 <script type="text/javascript">
   $(document).ready(function () {
     function nodeClicked(e, d) {
@@ -54,48 +53,6 @@
       console.log("handle zoom");
       d3.select("svg g").attr("transform", e.transform);
     }
-    function htmlDecode(input) {
-      var doc = new DOMParser().parseFromString(input, "text/html");
-      return doc.documentElement.textContent;
-    }
-    function getEdgesStructData() {
-      fetch("?handler=StarNetwork&vertex=" + "@Model.Value1" + "&degree=" + "@Model.Value2")
-        .then((response) => {
-          return response.json();
-        })
-        .then((responseData) => {
-          const edgesStruct = responseData;
-          var dataEdges = edgesStruct.edges;
-          var d3NodesSet = new Set();
-          var nodes = Array();
-          var edges = Array();
-
-          for (let i = 0; i < dataEdges.length; i++) {
-            var e = dataEdges[i];
-            var v1 = e["v1Value"];
-            var v2 = e["v2Value"];
-            d3NodesSet.add(v1);
-            d3NodesSet.add(v2);
-            edge = {};
-            edge["source"] = v1;
-            edge["target"] = v2;
-            edge["weight"] = 1.0;
-            edges.push(edge);
-          }
-          console.log("edges count: " + edges.length);
-
-          console.log("d3NodesSet: " + d3NodesSet.size);
-          d3NodesSet.forEach((s) => {
-            n = {};
-            n["name"] = s;
-            n["type"] = "vertex";
-            n["adjCount"] = 0;
-            nodes.push(n);
-          });
-
-          generateGraphViz(nodes, edges);
-        });
-    }
     let zoom = d3.zoom().on("zoom", handleZoom);
 
     var typeScale = d3
@@ -103,15 +60,42 @@
       .domain(["library", "author", "maintainer"])
       .range(["#75739F", "#41A368", "#FE9922"]);
 
-    // const dataElement = document.querySelector("#graphData");
-    // const edgesStruct =
-    //   dataElement.dataset.edgesStruct == ""
-    //     ? null
-    //     : JSON.parse(dataElement.dataset.edgesStruct);
-    //const edgesStructJson = "@Model.EdgesStruct";
-    //var edgesStruct = JSON.parse(_.unescape(edgesStructJson));
-    //var edgesStruct = JSON.parse(htmlDecode("@Model.EdgesStruct"));
-    getEdgesStructData();
+    fetch("?handler=StarNetwork&vertex=" + "@Model.Value1" + "&degree=" + "@Model.Value2")
+      .then((response) => {
+        return response.json();
+      })
+      .then((responseData) => {
+        const edgesStruct = responseData;
+        var dataEdges = edgesStruct.edges;
+        var d3NodesSet = new Set();
+        var nodes = Array();
+        var edges = Array();
+
+        for (let i = 0; i < dataEdges.length; i++) {
+          var e = dataEdges[i];
+          var v1 = e["v1Value"];
+          var v2 = e["v2Value"];
+          d3NodesSet.add(v1);
+          d3NodesSet.add(v2);
+          edge = {};
+          edge["source"] = v1;
+          edge["target"] = v2;
+          edge["weight"] = 1.0;
+          edges.push(edge);
+        }
+        console.log("edges count: " + edges.length);
+
+        console.log("d3NodesSet: " + d3NodesSet.size);
+        d3NodesSet.forEach((s) => {
+          n = {};
+          n["name"] = s;
+          n["type"] = "vertex";
+          n["adjCount"] = 0;
+          nodes.push(n);
+        });
+
+        generateGraphViz(nodes, edges);
+      });
 
     function generateGraphViz(nodes, edges) {
       console.log("generateGraphViz");
@@ -212,5 +196,4 @@
       initZoom();
     }
   });
-
 </script>

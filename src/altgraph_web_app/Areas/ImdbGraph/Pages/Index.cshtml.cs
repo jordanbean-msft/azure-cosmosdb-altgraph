@@ -8,7 +8,6 @@ using Microsoft.Extensions.Options;
 using altgraph_shared_app.Repositories.Imdb;
 using altgraph_shared_app.Models.Imdb;
 using altgraph_shared_app.Services.Graph.v2;
-using altgraph_shared_app.Services.Graph.v2.Structs;
 
 namespace altgraph_web_app.Areas.ImdbGraph.Pages;
 
@@ -173,8 +172,6 @@ public class IndexModel : PageModel
       JStarNetwork? star = _jGraph.StarNetworkFor(vertex, int.Parse(degree));
       if (star != null)
       {
-        //EdgesStruct = JsonSerializer.Serialize<EdgesStruct>(star.AsEdgesStruct());
-        //EdgesStruct = star.AsEdgesStruct();
         return new JsonResult(star.AsEdgesStruct());
       }
     }
