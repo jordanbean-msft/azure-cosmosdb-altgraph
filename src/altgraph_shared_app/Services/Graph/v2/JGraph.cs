@@ -312,7 +312,7 @@ namespace altgraph_shared_app.Services.Graph.v2
     {
       if (e != null)
       {
-        string[] tokens = e.ToString().Split(":");
+        string[] tokens = e.ToString().Split(" -> ");
         if (tokens.Length == 2)
         {
           EdgeStruct edgeStruct = new EdgeStruct();

@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using altgraph_shared_app.Repositories.Imdb;
 using altgraph_shared_app.Models.Imdb;
 using altgraph_shared_app.Services.Graph.v2;
+using altgraph_shared_app.Services.Graph.v2.Structs;
 
 namespace altgraph_web_app.Areas.ImdbGraph.Pages;
 
@@ -174,6 +175,20 @@ public class IndexModel : PageModel
       {
         return new JsonResult(star.AsEdgesStruct());
       }
+    }
+    return null;
+  }
+
+  public JsonResult? OnGetShortestPath(string v1, string v2)
+  {
+    _logger.LogDebug($"OnGetShortestPath, v1: {v1}, v2: {v2}");
+
+    EdgesStruct? edgesStruct =
+                _jGraph.GetShortestPathAsEdgesStruct(v1, v2);
+
+    if (edgesStruct != null)
+    {
+      return new JsonResult(edgesStruct);
     }
     return null;
   }
