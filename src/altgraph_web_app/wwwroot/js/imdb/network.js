@@ -8,14 +8,6 @@ $(document).ready(function () {
         return response.json();
       })
       .then((responseData) => {
-        //const dataElement = document.querySelector("#graphData");
-        // const data =
-        //   dataElement.dataset.vertexInfo == ""
-        //     ? null
-        //     : JSON.parse(dataElement.dataset.vertexInfo);
-        // var url = "/get_imdb_vertex/" + imdbConst;
-        // $.get(url, function (data) {
-        //   console.log(data);
         const data = responseData;
         $("#vertexInfo").text("");
         if (imdbConst.startsWith("tt")) {
@@ -52,6 +44,48 @@ $(document).ready(function () {
     console.log("handle zoom");
     d3.select("svg g").attr("transform", e.transform);
   }
+  function htmlDecode(input) {
+    var doc = new DOMParser().parseFromString(input, "text/html");
+    return doc.documentElement.textContent;
+  }
+  function getEdgesStructData() {
+    fetch("?handler=starNetwork")
+      .then((response) => {
+        return response.json();
+      })
+      .then((responseData) => {
+        const edgesStruct = JSON.parse(responseData);
+        var dataEdges = edgesStruct.edges;
+        var d3NodesSet = new Set();
+        var nodes = Array();
+        var edges = Array();
+
+        for (let i = 0; i < dataEdges.length; i++) {
+          var e = dataEdges[i];
+          var v1 = e["v1Value"];
+          var v2 = e["v2Value"];
+          d3NodesSet.add(v1);
+          d3NodesSet.add(v2);
+          edge = {};
+          edge["source"] = v1;
+          edge["target"] = v2;
+          edge["weight"] = 1.0;
+          edges.push(edge);
+        }
+        console.log("edges count: " + edges.length);
+
+        console.log("d3NodesSet: " + d3NodesSet.size);
+        d3NodesSet.forEach((s) => {
+          n = {};
+          n["name"] = s;
+          n["type"] = "vertex";
+          n["adjCount"] = 0;
+          nodes.push(n);
+        });
+
+        generateGraphViz(nodes, edges);
+      });
+  }
   let zoom = d3.zoom().on("zoom", handleZoom);
 
   var typeScale = d3
@@ -59,40 +93,15 @@ $(document).ready(function () {
     .domain(["library", "author", "maintainer"])
     .range(["#75739F", "#41A368", "#FE9922"]);
 
-  const dataElement = document.querySelector("#graphData");
-  const edgesStruct =
-    dataElement.dataset.edgesStruct == ""
-      ? null
-      : JSON.parse(dataElement.dataset.edgesStruct);
-  var dataEdges = edgesStruct.edges;
-  var d3NodesSet = new Set();
-  var nodes = Array();
-  var edges = Array();
-
-  for (let i = 0; i < dataEdges.length; i++) {
-    var e = dataEdges[i];
-    var v1 = e["v1Value"];
-    var v2 = e["v2Value"];
-    d3NodesSet.add(v1);
-    d3NodesSet.add(v2);
-    edge = {};
-    edge["source"] = v1;
-    edge["target"] = v2;
-    edge["weight"] = 1.0;
-    edges.push(edge);
-  }
-  console.log("edges count: " + edges.length);
-
-  console.log("d3NodesSet: " + d3NodesSet.size);
-  d3NodesSet.forEach((s) => {
-    n = {};
-    n["name"] = s;
-    n["type"] = "vertex";
-    n["adjCount"] = 0;
-    nodes.push(n);
-  });
-
-  generateGraphViz(nodes, edges);
+  // const dataElement = document.querySelector("#graphData");
+  // const edgesStruct =
+  //   dataElement.dataset.edgesStruct == ""
+  //     ? null
+  //     : JSON.parse(dataElement.dataset.edgesStruct);
+  //const edgesStructJson = "@Model.EdgesStruct";
+  //var edgesStruct = JSON.parse(_.unescape(edgesStructJson));
+  //var edgesStruct = JSON.parse(htmlDecode("@Model.EdgesStruct"));
+  getEdgesStructData();
 
   function generateGraphViz(nodes, edges) {
     console.log("generateGraphViz");

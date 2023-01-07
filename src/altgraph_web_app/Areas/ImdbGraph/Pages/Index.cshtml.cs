@@ -1,15 +1,10 @@
 ﻿using System.Text.Json;
-using altgraph_shared_app.Models.Npm;
 using altgraph_shared_app.Options;
 using altgraph_shared_app.Services.Cache;
-using altgraph_shared_app.Services.Graph.v1;
-using altgraph_web_app.Services.Graph;
-using altgraph_shared_app.Services.Repositories.Npm;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Azure.CosmosRepository;
 using Microsoft.Extensions.Options;
-using altgraph_shared_app;
 using altgraph_shared_app.Repositories.Imdb;
 using altgraph_shared_app.Models.Imdb;
 using altgraph_shared_app.Services.Graph.v2;
@@ -68,7 +63,6 @@ public class IndexModel : PageModel
         Movie? m = await LookupMovieAsync(imdbConst);
         if (m != null)
         {
-          //VertexInfo = JsonSerializer.Serialize(m);
           return new JsonResult(m);
         }
       }
@@ -77,7 +71,6 @@ public class IndexModel : PageModel
         Person? p = await LookupPersonAsync(imdbConst);
         if (p != null)
         {
-          //VertexInfo = JsonSerializer.Serialize(p);
           return new JsonResult(p);
         }
       }
@@ -135,24 +128,20 @@ public class IndexModel : PageModel
       switch (FormFunction)
       {
         case FormFunctionEnum.GraphStats:
-          await HandleGraphStatsAsync();
           break;
         case FormFunctionEnum.PageRank:
           if (!IsValue1AnInteger())
           {
             Value1 = "100";
           }
-          await HandlePageRankAsync();
           break;
         case FormFunctionEnum.Network:
           if (!IsValue2AnInteger())
           {
             Value2 = "1";
           }
-          await HandleNetworkAsync();
           break;
         case FormFunctionEnum.ShortestPath:
-          await HandleShortestPathAsync();
           break;
         default:
           throw new NotImplementedException(FormFunction.ToString());
@@ -175,20 +164,21 @@ public class IndexModel : PageModel
     throw new NotImplementedException();
   }
 
-  private Task HandleNetworkAsync()
+  public JsonResult? OnGetStarNetwork(string vertex, string degree)
   {
-    _logger.LogDebug($"HandleNetworkAsync, vertex: {Value1}, degree: {Value2}");
+    _logger.LogDebug($"OnGetStarNetwork, vertex: {vertex}, degree: {degree}");
 
-    if (Value2 != null)
+    if (degree != null)
     {
-      JStarNetwork? star = _jGraph.StarNetworkFor(Value1, int.Parse(Value2));
+      JStarNetwork? star = _jGraph.StarNetworkFor(vertex, int.Parse(degree));
       if (star != null)
       {
-        EdgesStruct = JsonSerializer.Serialize<EdgesStruct>(star.AsEdgesStruct());
+        //EdgesStruct = JsonSerializer.Serialize<EdgesStruct>(star.AsEdgesStruct());
+        //EdgesStruct = star.AsEdgesStruct();
+        return new JsonResult(star.AsEdgesStruct());
       }
     }
-
-    return Task.CompletedTask;
+    return null;
   }
 
   private Task HandlePageRankAsync()
