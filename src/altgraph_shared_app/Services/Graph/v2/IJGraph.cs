@@ -21,7 +21,7 @@ namespace altgraph_shared_app.Services.Graph.v2
     HashSet<Edge<string>>? IncomingEdgesOf(string v);
     int InDegreeOf(string v);
     bool IsVertexPresent(string v);
-    Dictionary<string, double> PageRankForAll();
+    IDictionary<string, double>? PageRankForAll();
     double PageRankForVertex(string v);
     Task RefreshAsync();
     List<JRank> SortedPageRanks(int maxCount);

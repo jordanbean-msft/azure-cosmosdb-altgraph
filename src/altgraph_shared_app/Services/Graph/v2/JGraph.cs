@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using QuikGraph;
 using QuikGraph.Algorithms;
+using QuikGraph.Algorithms.Ranking;
 
 namespace altgraph_shared_app.Services.Graph.v2
 {
@@ -211,41 +212,46 @@ namespace altgraph_shared_app.Services.Graph.v2
 
     public double PageRankForVertex(string v)
     {
-      throw new NotImplementedException();
-      // if (IsVertexPresent(v))
-      // {
-      //   PageRank pr = new PageRank(Graph);
-      //   return pr.GetVertexScore(v);
-      // }
-      // return -1.0;
+      if (Graph != null && Graph is IBidirectionalGraph<string, Edge<string>> && IsVertexPresent(v))
+      {
+        PageRankAlgorithm<string, Edge<string>> pr = new PageRankAlgorithm<string, Edge<string>>((IBidirectionalGraph<string, Edge<string>>)Graph);
+        pr.Compute();
+        return pr.Ranks[v];
+        //return pr.GetVertexScore(v);
+      }
+      return -1.0;
     }
 
-    public Dictionary<string, double> PageRankForAll()
+    public IDictionary<string, double>? PageRankForAll()
     {
-      throw new NotImplementedException();
-      // PageRank pr = new PageRank(Graph);
-      // return pr.GetScores();
+      if (Graph != null && Graph is IBidirectionalGraph<string, Edge<string>>)
+      {
+        PageRankAlgorithm<string, Edge<string>> pr = new PageRankAlgorithm<string, Edge<string>>((IBidirectionalGraph<string, Edge<string>>)Graph);
+        pr.Compute();
+        return pr.Ranks;
+      }
+      return null;
     }
 
     public List<JRank> SortedPageRanks(int maxCount)
     {
-      throw new NotImplementedException();
-      // List<JRank> ranks = new List<JRank>();
-      // VertexValueStruct vvStruct = new VertexValueStruct();
-      // Dictionary<string, double> scores = PageRankForAll();
-      // //Iterator<string> prAllIt = scores.keySet().iterator();
-      // //while (prAllIt.hasNext())
-      // foreach (string vertex in scores.Keys)
-      // {
-      //   double value = scores[vertex];
-      //   vvStruct.AddRank(vertex, value);
-      // }
-      // vvStruct.Sort();
-      // for (int i = 0; i < maxCount; i++)
-      // {
-      //   ranks.Add(vvStruct.GetRank(i));
-      // }
-      // return ranks;
+      List<JRank> ranks = new List<JRank>();
+      VertexValueStruct vvStruct = new VertexValueStruct();
+      IDictionary<string, double>? scores = PageRankForAll();
+      if (scores != null)
+      {
+        foreach (string vertex in scores.Keys)
+        {
+          double value = scores[vertex];
+          vvStruct.AddRank(vertex, value);
+        }
+        vvStruct.Sort();
+        for (int i = 0; i < maxCount; i++)
+        {
+          ranks.Add(vvStruct.GetRank(i));
+        }
+      }
+      return ranks;
     }
 
     public double CentralityOfVertex(string v)
