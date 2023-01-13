@@ -1,5 +1,4 @@
-﻿using System.Text.Json;
-using altgraph_shared_app.Models.Npm;
+﻿using altgraph_shared_app.Models.Npm;
 using altgraph_shared_app.Options;
 using altgraph_shared_app.Services.Cache;
 using altgraph_shared_app.Services.Graph.v1;
@@ -26,15 +25,6 @@ public class IndexModel : PageModel
   public string? CacheOpts { get; set; } = string.Empty;
   [BindProperty]
   public string? ElapsedMs { get; set; } = string.Empty;
-  [BindProperty(SupportsGet = true)]
-  public string? NodesCsv { get; set; } = string.Empty;
-  [BindProperty(SupportsGet = true)]
-  public string? EdgesCsv { get; set; } = string.Empty;
-  [BindProperty(SupportsGet = true)]
-  public string? LibraryAsJson { get; set; } = "{}";
-  public string? GraphJson { get; set; } = string.Empty;
-  [BindProperty(SupportsGet = true)]
-  public string? LibraryInfo { get; set; } = string.Empty;
   private readonly LibraryRepository _libraryRepository;
   private readonly AuthorRepository _authorRepository;
   private readonly TripleRepository _tripleRepository;
@@ -77,10 +67,6 @@ public class IndexModel : PageModel
       {
         await HandleLibrarySearchAsync();
       }
-
-      // Task[] tasks = { GetNodesCsvAsync(), GetEdgesCsvAsync() };
-
-      // Task.WaitAll(tasks);
     }
     catch (Exception ex)
     {
