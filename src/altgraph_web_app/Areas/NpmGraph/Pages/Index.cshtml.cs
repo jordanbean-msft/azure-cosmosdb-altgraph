@@ -10,8 +10,6 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Azure.CosmosRepository;
 using Microsoft.Extensions.Options;
 using altgraph_shared_app;
-using System.Net;
-using System.Net.Http.Headers;
 
 namespace altgraph_web_app.Areas.NpmGraph.Pages;
 
