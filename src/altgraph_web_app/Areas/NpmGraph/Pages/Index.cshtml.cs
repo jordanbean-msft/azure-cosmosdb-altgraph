@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Azure.CosmosRepository;
 using Microsoft.Extensions.Options;
 using altgraph_shared_app;
+using System.Net;
+using System.Net.Http.Headers;
 
 namespace altgraph_web_app.Areas.NpmGraph.Pages;
 
@@ -78,9 +80,9 @@ public class IndexModel : PageModel
         await HandleLibrarySearchAsync();
       }
 
-      Task[] tasks = { GetNodesCsvAsync(), GetEdgesCsvAsync() };
+      // Task[] tasks = { GetNodesCsvAsync(), GetEdgesCsvAsync() };
 
-      Task.WaitAll(tasks);
+      // Task.WaitAll(tasks);
     }
     catch (Exception ex)
     {
@@ -206,14 +208,14 @@ public class IndexModel : PageModel
     return cacheOpts.ToUpper().Contains('T');
   }
 
-  private async Task GetNodesCsvAsync()
+  public async Task<IActionResult> OnGetNodesCsvAsync()
   {
-    NodesCsv = await ReadCsvAsync(_pathsOptions.NodesCsvFile);
+    return Content(await ReadCsvAsync(_pathsOptions.NodesCsvFile), "text/csv");
   }
 
-  private async Task GetEdgesCsvAsync()
+  public async Task<IActionResult> OnGetEdgesCsvAsync()
   {
-    EdgesCsv = await ReadCsvAsync(_pathsOptions.EdgesCsvFile);
+    return Content(await ReadCsvAsync(_pathsOptions.EdgesCsvFile), "text/csv");
   }
 
   public async Task<JsonResult?> OnGetLibraryAsJson(string libraryName)
