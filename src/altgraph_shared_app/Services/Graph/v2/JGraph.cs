@@ -19,10 +19,17 @@ namespace altgraph_shared_app.Services.Graph.v2
     private IJGraphBuilder _graphBuilder;
     private readonly ImdbOptions _imdbOptions;
 
+    public event EventHandler<JGraphStartedLoadingProgressEventArgs>? JGraphStartedLoadingProgress;
+    public event EventHandler<JGraphLoadingProgressEventArgs>? JGraphLoadingProgress;
+    public event EventHandler<JGraphFinishedLoadingProgressEventArgs>? JGraphFinishedLoadingProgress;
+
     public JGraph(ILogger<JGraph> logger, IJGraphBuilder graphBuilder, IOptions<ImdbOptions> imdbOptions)
     {
       _logger = logger;
       _graphBuilder = graphBuilder;
+      _graphBuilder.JGraphBuilderStartedLoadingProgress += OnJGraphStartedLoadingProgress;
+      _graphBuilder.JGraphBuilderLoadingProgress += OnJGraphLoadingProgress;
+      _graphBuilder.JGraphBuilderFinishedLoadingProgress += OnJGraphFinishedLoadingProgress;
       _imdbOptions = imdbOptions.Value;
       Domain = _imdbOptions.GraphDomain;
       Source = _imdbOptions.GraphSource;
@@ -328,6 +335,78 @@ namespace altgraph_shared_app.Services.Graph.v2
         }
       }
       return null;
+    }
+
+    private void OnJGraphStartedLoadingProgress(object? sender, JGraphBuilderStartedLoadingProgressEventArgs e)
+    {
+      OnRaiseJGraphStartedLoadingProgressEvent(new JGraphStartedLoadingProgressEventArgs(e.MaxCount));
+    }
+
+    private void OnJGraphLoadingProgress(object? sender, JGraphBuilderLoadingProgressEventArgs e)
+    {
+      OnRaiseJGraphLoadingProgressEvent(new JGraphLoadingProgressEventArgs(e.Progress));
+    }
+
+    private void OnJGraphFinishedLoadingProgress(object? sender, JGraphBuilderFinishedLoadingProgressEventArgs e)
+    {
+      OnRaiseJGraphFinishedLoadingProgressEvent(new JGraphFinishedLoadingProgressEventArgs(e.Count));
+    }
+
+    protected virtual void OnRaiseJGraphStartedLoadingProgressEvent(JGraphStartedLoadingProgressEventArgs e)
+    {
+      EventHandler<JGraphStartedLoadingProgressEventArgs>? raiseEvent = JGraphStartedLoadingProgress;
+
+      if (raiseEvent != null)
+      {
+        raiseEvent(this, e);
+      }
+    }
+
+    protected virtual void OnRaiseJGraphLoadingProgressEvent(JGraphLoadingProgressEventArgs e)
+    {
+      EventHandler<JGraphLoadingProgressEventArgs>? raiseEvent = JGraphLoadingProgress;
+
+      if (raiseEvent != null)
+      {
+        raiseEvent(this, e);
+      }
+    }
+
+    protected virtual void OnRaiseJGraphFinishedLoadingProgressEvent(JGraphFinishedLoadingProgressEventArgs e)
+    {
+      EventHandler<JGraphFinishedLoadingProgressEventArgs>? raiseEvent = JGraphFinishedLoadingProgress;
+
+      if (raiseEvent != null)
+      {
+        raiseEvent(this, e);
+      }
+    }
+  }
+
+  public class JGraphStartedLoadingProgressEventArgs
+  {
+    public long MaxCount { get; private set; }
+    public JGraphStartedLoadingProgressEventArgs(long maxCount)
+    {
+      MaxCount = maxCount;
+    }
+  }
+
+  public class JGraphLoadingProgressEventArgs
+  {
+    public long Progress { get; private set; }
+    public JGraphLoadingProgressEventArgs(long progress)
+    {
+      Progress = progress;
+    }
+  }
+
+  public class JGraphFinishedLoadingProgressEventArgs
+  {
+    public long Count { get; private set; }
+    public JGraphFinishedLoadingProgressEventArgs(long count)
+    {
+      Count = count;
     }
   }
 }

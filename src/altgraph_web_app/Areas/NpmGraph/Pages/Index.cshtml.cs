@@ -216,7 +216,7 @@ public class IndexModel : PageModel
     EdgesCsv = await ReadCsvAsync(_pathsOptions.EdgesCsvFile);
   }
 
-  public async Task OnGetLibraryAsJsonAsync(string libraryName)
+  public async Task<JsonResult?> OnGetLibraryAsJson(string libraryName)
   {
     _logger.LogDebug($"getLibraryAsJson, libraryName: {libraryName}");
 
@@ -225,17 +225,17 @@ public class IndexModel : PageModel
     {
       try
       {
-        LibraryAsJson = JsonSerializer.Serialize(library);
+        return new JsonResult(library);
       }
       catch (Exception e)
       {
         _logger.LogError(e.StackTrace);
-        LibraryAsJson = "{}";
+        return null;
       }
     }
     else
     {
-      LibraryAsJson = "{}";
+      return null;
     }
   }
 

@@ -11,7 +11,8 @@ namespace altgraph_shared_app
     public const string IMDB_SEED_CONTAINER_NAME = "imdb_seed";
     public const string IMDB_GRAPH_CONTAINER_NAME = "imdb_graph";
     public const string GRAPH_DOMAIN_IMDB = "imdb";
-    public const string NPM_CONTAINER_NAME = "npm_graph";
+    public const string NPM_CONTAINER_NAME = "altgraph";
+    //public const string NPM_CONTAINER_NAME = "npm_graph";
     public const string PARTITION_KEY = "/pk";
 
     public const string DEFAULT_CONTAINER = "altgraph";

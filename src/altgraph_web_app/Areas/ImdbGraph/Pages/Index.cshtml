@@ -29,6 +29,10 @@
       <span>&nbsp;&nbsp;</span>
     </form>
   </div>
+  <div>
+    <label id="graphLoadingProgressLabel" for="graphLoadingProgress" style="display: none">Loading Progress:</label>
+    <progress id="graphLoadingProgress" style="display: none"></progress>
+  </div>
   @{
     switch (@Model.FormFunction)
     {
@@ -41,6 +45,51 @@
       case FormFunctionEnum.GraphStats:
         <partial name="_Stats" model="@Model" />
         break;
+      case FormFunctionEnum.PageRank:
+        <partial name="_PageRank" model="@Model" />
+        break;
     }
   }
 </div>
+<script>
+  $(document).ready(function () {
+    var intervalId;
+
+    $('#searchForm').submit(startGraphLoadingProgress);
+
+    function startGraphLoadingProgress() {
+      $('#graphLoadingProgressLabel').show();
+      $('#graphLoadingProgress').max = "@Model.GraphLoadingMaxProgress";
+      $('#graphLoadingProgress').show();
+      intervalId = setInterval(
+        function () {
+          var myHeaders = new Headers();
+          myHeaders.append('pragma', 'no-cache');
+          myHeaders.append('cache-control', 'no-cache');
+
+          var myInit = {
+            method: 'GET',
+            headers: myHeaders,
+          };
+          fetch("?handler=Progress", myInit)
+            .then((response) => {
+              return response.json();
+            })
+            .then((progress) => {
+              $("#graphLoadingProgress").value = progress;
+              if (progress == "@Model.GraphLoadingMaxProgress") {
+                stopGraphLoadingProgress();
+              }
+            }
+            );
+        },
+        5
+      );
+    }
+    function stopGraphLoadingProgress() {
+      $('#graphLoadingProgressLabel').hide();
+      $('#graphLoadingProgress').hide();
+      clearInterval(intervalId);
+    }
+  })
+</script>

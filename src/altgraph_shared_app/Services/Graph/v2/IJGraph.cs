@@ -26,5 +26,9 @@ namespace altgraph_shared_app.Services.Graph.v2
     Task RefreshAsync();
     List<JRank> SortedPageRanks(int maxCount);
     JStarNetwork? StarNetworkFor(string rootVertex, int degrees);
+
+    event EventHandler<JGraphStartedLoadingProgressEventArgs>? JGraphStartedLoadingProgress;
+    event EventHandler<JGraphLoadingProgressEventArgs>? JGraphLoadingProgress;
+    event EventHandler<JGraphFinishedLoadingProgressEventArgs>? JGraphFinishedLoadingProgress;
   }
 }

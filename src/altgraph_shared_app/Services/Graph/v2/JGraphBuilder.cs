@@ -20,6 +20,9 @@ namespace altgraph_shared_app.Services.Graph.v2
     private ILogger<JGraphBuilder> _logger;
     private CosmosOptions _cosmosOptions;
     private ImdbOptions _imdbOptions;
+    public event EventHandler<JGraphBuilderStartedLoadingProgressEventArgs>? JGraphBuilderStartedLoadingProgress;
+    public event EventHandler<JGraphBuilderLoadingProgressEventArgs>? JGraphBuilderLoadingProgress;
+    public event EventHandler<JGraphBuilderFinishedLoadingProgressEventArgs>? JGraphBuilderFinishedLoadingProgress;
 
     public JGraphBuilder(ILogger<JGraphBuilder> logger, IOptions<CosmosOptions> cosmosOptions, IOptions<ImdbOptions> imdbOptions)
     {
@@ -142,7 +145,7 @@ namespace altgraph_shared_app.Services.Graph.v2
       long movieNodesCreated = 0;
       long personNodesCreated = 0;
       long edgesCreated = 0;
-      var sql = new QueryDefinition("select * from c where c.pk = @pk")
+      var getDataSql = new QueryDefinition("select * from c where c.pk = @pk")
         .WithParameter("@pk", Constants.DOCTYPE_MOVIE_SEED);
       int pageSize = 1000;
       string? continuationToken = null;
@@ -150,7 +153,7 @@ namespace altgraph_shared_app.Services.Graph.v2
       _logger.LogWarning("uri:    " + Uri);
       _logger.LogWarning("key:    " + Key);
       _logger.LogWarning("dbName: " + DbName);
-      _logger.LogWarning("sql:    " + sql.QueryText);
+      _logger.LogWarning("sql:    " + getDataSql.QueryText);
 
       long startMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
       JsonSerializerOptions jsonSerializerOptions = new JsonSerializerOptions()
@@ -178,14 +181,36 @@ namespace altgraph_shared_app.Services.Graph.v2
 
       try
       {
+        var requestOptions = new QueryRequestOptions();
+        requestOptions.EnableScanInQuery = true;
+        var getDataSqlCount = new QueryDefinition("select VALUE COUNT(1) from c where c.pk = @pk")
+          .WithParameter("@pk", Constants.DOCTYPE_MOVIE_SEED);
+
+        var queryIterator = container.GetItemQueryIterator<long>(getDataSqlCount);
+        var response = await queryIterator.ReadNextAsync();
+        long count = response.Resource.FirstOrDefault();
+
+        _logger.LogWarning($"count: {count}");
+
+        OnRaiseJGraphBuilderStartedLoadingProgressEvent(new JGraphBuilderStartedLoadingProgressEventArgs(count));
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error getting count");
+      }
+
+      try
+      {
         using (FeedIterator<SeedDocument> feedResponseIterator =
-                container.GetItemQueryIterator<SeedDocument>(sql, continuationToken, new QueryRequestOptions { MaxItemCount = pageSize }))
+                container.GetItemQueryIterator<SeedDocument>(getDataSql, continuationToken, new QueryRequestOptions { MaxItemCount = pageSize }))
         {
           do
           {
             while (feedResponseIterator.HasMoreResults)
             {
               FeedResponse<SeedDocument> page = await feedResponseIterator.ReadNextAsync();
+
+              OnRaiseJGraphBuilderLoadingProgressEvent(new JGraphBuilderLoadingProgressEventArgs(page.Resource.Count()));
 
               foreach (SeedDocument doc in page.Resource)
               {
@@ -252,7 +277,40 @@ namespace altgraph_shared_app.Services.Graph.v2
       _logger.LogWarning($"loadImdbGraphFromCosmos - db connect ms:      {dbConnectElapsed}");
       _logger.LogWarning($"loadImdbGraphFromCosmos - db read ms:         {dbReadingElapsed}");
       _logger.LogWarning($"loadImdbGraphFromCosmos - total elapsed ms:   {totalElapsed}");
+
+      OnRaiseJGraphBuilderFinishedLoadingProgressEvent(new JGraphBuilderFinishedLoadingProgressEventArgs(documentsRead));
+
       return graph;
+    }
+
+    protected virtual void OnRaiseJGraphBuilderStartedLoadingProgressEvent(JGraphBuilderStartedLoadingProgressEventArgs e)
+    {
+      EventHandler<JGraphBuilderStartedLoadingProgressEventArgs>? raiseEvent = JGraphBuilderStartedLoadingProgress;
+
+      if (raiseEvent != null)
+      {
+        raiseEvent(this, e);
+      }
+    }
+
+    protected virtual void OnRaiseJGraphBuilderLoadingProgressEvent(JGraphBuilderLoadingProgressEventArgs e)
+    {
+      EventHandler<JGraphBuilderLoadingProgressEventArgs>? raiseEvent = JGraphBuilderLoadingProgress;
+
+      if (raiseEvent != null)
+      {
+        raiseEvent(this, e);
+      }
+    }
+
+    protected virtual void OnRaiseJGraphBuilderFinishedLoadingProgressEvent(JGraphBuilderFinishedLoadingProgressEventArgs e)
+    {
+      EventHandler<JGraphBuilderFinishedLoadingProgressEventArgs>? raiseEvent = JGraphBuilderFinishedLoadingProgress;
+
+      if (raiseEvent != null)
+      {
+        raiseEvent(this, e);
+      }
     }
 
     // protected MemoryStats CheckMemory(bool doGc, bool display, string note)
@@ -282,5 +340,32 @@ namespace altgraph_shared_app.Services.Graph.v2
     //   System.out.println(s);
     // }
 
+  }
+
+  public class JGraphBuilderStartedLoadingProgressEventArgs
+  {
+    public long MaxCount { get; private set; }
+    public JGraphBuilderStartedLoadingProgressEventArgs(long maxCount)
+    {
+      MaxCount = maxCount;
+    }
+  }
+
+  public class JGraphBuilderLoadingProgressEventArgs
+  {
+    public long Progress { get; private set; }
+    public JGraphBuilderLoadingProgressEventArgs(long progress)
+    {
+      Progress = progress;
+    }
+  }
+
+  public class JGraphBuilderFinishedLoadingProgressEventArgs
+  {
+    public long Count { get; private set; }
+    public JGraphBuilderFinishedLoadingProgressEventArgs(long count)
+    {
+      Count = count;
+    }
   }
 }

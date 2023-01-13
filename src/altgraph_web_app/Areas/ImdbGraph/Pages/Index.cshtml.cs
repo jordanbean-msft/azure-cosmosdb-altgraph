@@ -29,6 +29,9 @@ public class IndexModel : PageModel
   public string? EdgesStruct { get; set; } = string.Empty;
   //[BindProperty(SupportsGet = true)]
   //public string? VertexInfo { get; set; } = string.Empty;
+  [BindProperty(SupportsGet = true)]
+  public long? GraphLoadingMaxProgress { get; set; } = 0;
+  private long? graphLoadingProgress { get; set; } = 0;
   private IJGraph _jGraph;
   private readonly MovieRepository _movieRepository;
   private readonly PersonRepository _personRepository;
@@ -49,6 +52,9 @@ public class IndexModel : PageModel
     _pathsOptions = pathsOptions.Value;
     _imdbOptions = imdbOptions.Value;
     _jGraph = jgraph;
+    _jGraph.JGraphStartedLoadingProgress += JGraphStartedLoadingProgress;
+    _jGraph.JGraphLoadingProgress += JGraphLoadingProgress;
+    _jGraph.JGraphFinishedLoadingProgress += JGraphFinishedLoadingProgress;
     _memoryStats = memoryStats;
 
     int[] counts = _jGraph.GetVertexAndEdgeCounts();
@@ -190,11 +196,6 @@ public class IndexModel : PageModel
     return Page();
   }
 
-  private Task HandleShortestPathAsync()
-  {
-    throw new NotImplementedException();
-  }
-
   public JsonResult? OnGetStarNetwork(string vertex, string degree)
   {
     _logger.LogDebug($"OnGetStarNetwork, vertex: {vertex}, degree: {degree}");
@@ -224,14 +225,24 @@ public class IndexModel : PageModel
     return null;
   }
 
-  private Task HandlePageRankAsync()
+  public JsonResult? OnGetPageRanks(string count)
   {
-    throw new NotImplementedException();
+    _logger.LogDebug($"OnGetPageRanks, count: {count}");
+
+    if (count != null)
+    {
+      List<JRank>? ranks = _jGraph.SortedPageRanks(int.Parse(count));
+
+      return new JsonResult(ranks);
+    }
+    return null;
   }
 
-  private Task HandleGraphStatsAsync()
+  public JsonResult? OnGetProgress()
   {
-    throw new NotImplementedException();
+    _logger.LogWarning($"OnGetProgress, getSessionId (form): {HttpContext.Session.Id}");
+
+    return new JsonResult(graphLoadingProgress);
   }
 
   public void TranslateShortcutValues()
@@ -319,5 +330,21 @@ public class IndexModel : PageModel
       return "reload";
     }
     return "no";
+  }
+
+  private void JGraphFinishedLoadingProgress(object? sender, JGraphFinishedLoadingProgressEventArgs e)
+  {
+    graphLoadingProgress = e.Count;
+  }
+
+  private void JGraphLoadingProgress(object? sender, JGraphLoadingProgressEventArgs e)
+  {
+    graphLoadingProgress += e.Progress;
+  }
+
+  private void JGraphStartedLoadingProgress(object? sender, JGraphStartedLoadingProgressEventArgs e)
+  {
+    graphLoadingProgress = 0;
+    GraphLoadingMaxProgress = e.MaxCount;
   }
 }
